@@ -36,3 +36,8 @@
     transform: rotate(360deg);
   }
 }
+
+.histogram-container svg:focus,
+.histogram-container svg *:focus {
+  outline: none;
+}
