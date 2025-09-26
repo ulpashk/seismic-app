@@ -25,6 +25,7 @@ const layerConfigs = {
   social: {
     name: "Social Objects",
     description: "Point data showing social infrastructure",
+    // color: "#f59e0b", // amber
     color: "#f59e0b", // amber
     type: "geojson",
   },
@@ -36,6 +37,14 @@ const layerConfigs = {
     sourceLayer: "building_risk", // must match backend
   },
 }
+
+const socialLegend = [
+  { label: "School", color: "#2563eb" },
+  { label: "PPPN", color: "#16a34a" },
+  { label: "Health", color: "#dc2626" },
+  { label: "DDO", color: "#eab308" },
+  { label: "Other", color: "#6b7280" },
+]
 
 export default function MapComponent() {
   const mapContainer = useRef(null)
@@ -160,7 +169,18 @@ export default function MapComponent() {
           source: layerKey,
           filter: ["==", ["geometry-type"], "Point"],
           paint: {
-            "circle-color": config.color,
+            "circle-color":
+              layerKey === "social"
+                ? [
+                    "match",
+                    ["get", "category"],
+                    "school", "#2563eb",  // blue
+                    "pppn", "#16a34a",    // green
+                    "health", "#dc2626",  // red
+                    "ddo", "#eab308",     // yellow
+                    /* default */ "#6b7280" // gray
+                  ]
+                : config.color, // default for other layers
             "circle-radius": 6,
             "circle-opacity": 0.8,
             "circle-stroke-color": "#ffffff",
@@ -265,6 +285,21 @@ export default function MapComponent() {
 
       {/* Map Container */}
       <div ref={mapContainer} className="w-full h-full" />
+
+      <div className="absolute bottom-4 left-4 p-3 bg-gray-50 rounded-md border">
+      <h4 className="text-xl font-semibold text-gray-700 mb-2">Legend of Social Objects</h4>
+      <ul className="space-y-1">
+        {socialLegend.map((item) => (
+          <li key={item.label} className="flex items-center space-x-2">
+            <span
+              className="w-3 h-3 rounded-full"
+              style={{ backgroundColor: item.color }}
+            />
+            <span className="text-xs text-gray-600">{item.label}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
     </div>
   )
 }
