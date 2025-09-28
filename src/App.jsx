@@ -3,7 +3,7 @@ import { useState } from "react";
 import MainDashboard from "./page/MainDashboard";
 import MainPage from "./page/MainPage";
 import RiskPage from "./page/RiskPage";
-import Header from "./components/Header";
+import HeaderV from "./components/HeaderV";
 import InfraPage from "./page/InfraPage";
 
 function App() {
@@ -29,7 +29,8 @@ function App() {
   return (
     <Router>
       <div className="min-h-screen bg-gray-50">
-        <Header 
+        <HeaderV/>
+        {/* <Header 
             openDropDown={openDropDown} 
             setOpenDropDown={setOpenDropDown}
             selectedDistrict={selectedDistrict} 
@@ -37,7 +38,7 @@ function App() {
             selectDistrict={selectDistrict} 
             infoDropDown={infoDropDown} 
             setInfoDropDown={setInfoDropDown}
-        />
+        /> */}
         <Routes>
           <Route 
             path="/" 
@@ -58,7 +59,7 @@ function App() {
             } 
           />
           <Route path="/risk" element={<RiskPage selectedDistrict={selectedDistrict}/>} />
-          <Route path="/infra" element={<InfraPage selectedDistrict={selectedDistrict}/>} />
+          <Route path="/infrastructure" element={<InfraPage selectedDistrict={selectedDistrict}/>} />
         </Routes>
       </div>
     </Router>
