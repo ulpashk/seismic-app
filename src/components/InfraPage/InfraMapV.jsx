@@ -75,11 +75,10 @@ const pointPaintLogic = {
 }
 
 const socialLegend = [
-  { label: "School", color: "#2563eb" },
-  { label: "PPPN", color: "#16a34a" },
-  { label: "Health", color: "#dc2626" },
-  { label: "DDO", color: "#eab308" },
-  { label: "Other", color: "#6b7280" },
+  { label: "Школы", color: "#2563eb" },
+  { label: "ПППН", color: "#16a34a" },
+  { label: "Больницы", color: "#dc2626" },
+  { label: "Детские сады", color: "#eab308" },
 ]
 
 const readinessLegend = [
@@ -98,15 +97,18 @@ export default function MapComponent() {
   const [error, setError] = useState(null)
   const [maplibreLoaded, setMaplibreLoaded] = useState(false)
   const API_KEY = "9zZ4lJvufSPFPoOGi6yZ"
-  const [riskLevels, setRiskLevels] = useState({
-    high: false,
-    medium: true,
-    low: true,
+  const [enginNodes, setEnginNodes] = useState({
+    canalization: true,
+    powerSupply: true,
+    cityInfra: true,
+    heatSupply: true,
+    gasSupply: true,
   })
-  const [infrastructureCategories, setInfrastructureCategories] = useState({
-    landslides: true,
-    tectonicFaults: false,
-    mudflowPaths: false,
+  const [socialCategories, setSocialCategories] = useState({
+    schools: true,
+    ddo: true,
+    health: true,
+    pppn: true,
   })
 
   const [selectedDistrict, setSelectedDistrict] = useState(["Все районы"])
@@ -143,6 +145,51 @@ export default function MapComponent() {
     }
   }, [])
 
+  const loadBuildingLayer = () => {
+    if (!map.current) return
+
+    const config = layerConfigs.building
+
+    if (!map.current.getSource("building")) {
+      map.current.addSource("building", {
+        type: "vector",
+        tiles: [urls.building],
+        minzoom: 0,
+        maxzoom: 14,
+      })
+    }
+
+    if (!map.current.getLayer("building-fill")) {
+      map.current.addLayer({
+        id: "building-fill",
+        type: "fill",
+        source: "building",
+        "source-layer": config.sourceLayer,
+        paint: {
+          "fill-color": config.color,
+          "fill-opacity": 0.4, // semi-transparent
+        },
+      })
+    }
+
+    // 🔹 Apply district filter if not "Все районы"
+    if (selectedDistrict.length > 0 && !selectedDistrict.includes("Все районы")) {
+      map.current.setFilter("building-fill", [
+        "in",
+        ["get", "district"], 
+        ["literal", selectedDistrict]   // supports multiple districts
+      ]);
+    } else {
+      map.current.setFilter("building-fill", true); // show all
+    }
+  }
+
+  useEffect(() => {
+    if (map.current && map.current.getLayer("building-fill")) {
+      loadBuildingLayer();
+    }
+  }, [selectedDistrict]);
+
   useEffect(() => {
     if (!maplibreLoaded || map.current) return
 
@@ -158,7 +205,10 @@ export default function MapComponent() {
     map.current.addControl(new maplibregl.NavigationControl(), "top-right")
     map.current.addControl(new maplibregl.FullscreenControl(), "top-right")
 
-    loadLayer("building")
+    // loadLayer("building")
+    map.current.on("load", () => {
+      loadBuildingLayer()
+    })
   }, [maplibreLoaded])
 
   const loadLayer = async (layerKey) => {
@@ -171,10 +221,11 @@ export default function MapComponent() {
     try {
       // Remove old layers/sources
       Object.keys(layerConfigs).forEach((key) => {
+        if (key === "building") return // keep base layer
         if (map.current.getLayer(`${key}-polygons`)) map.current.removeLayer(`${key}-polygons`)
         if (map.current.getLayer(`${key}-lines`)) map.current.removeLayer(`${key}-lines`)
         if (map.current.getLayer(`${key}-points`)) map.current.removeLayer(`${key}-points`)
-        if (map.current.getLayer(`${key}-fill`)) map.current.removeLayer(`${key}-fill`)
+        // if (map.current.getLayer(`${key}-fill`)) map.current.removeLayer(`${key}-fill`)
         if (map.current.getSource(key)) map.current.removeSource(key)
       })
 
@@ -250,6 +301,7 @@ export default function MapComponent() {
             "circle-stroke-color": "#ffffff",
             "circle-stroke-width": 2,
           },
+          // "building-fill"
         })
 
         // fit bounds
@@ -307,20 +359,35 @@ export default function MapComponent() {
     }
   }
 
+  useEffect(() => {
+    if (!map.current || !map.current.getLayer("social-points")) return;
+
+    const selected = Object.entries(socialCategories)
+      .filter(([_, enabled]) => enabled)
+      .map(([key]) => key); // ["schools", "health", ...]
+
+    if (selected.length === 0) {
+      // hide everything
+      map.current.setFilter("social-points", ["==", "category", "___NONE___"]);
+    } else {
+      map.current.setFilter("social-points", ["in", "category", ...selected]);
+    }
+  }, [socialCategories]);
+
   const handleLayerSwitch = (layerKey) => {
     setActiveLayer(layerKey)
     loadLayer(layerKey)
   }
 
   const handleRiskLevelChange = (level) => {
-    setRiskLevels((prev) => ({
+    setEnginNodes((prev) => ({
       ...prev,
       [level]: !prev[level],
     }))
   }
 
-  const handleInfrastructureChange = (category) => {
-    setInfrastructureCategories((prev) => ({
+  const handleSocialChange = (category) => {
+    setSocialCategories((prev) => ({
       ...prev,
       [category]: !prev[category],
     }))
@@ -335,6 +402,7 @@ export default function MapComponent() {
       }
     })
   }
+
 
   return (
     <div className="w-full h-screen relative">
@@ -392,63 +460,90 @@ export default function MapComponent() {
             <label className="flex items-center space-x-2 cursor-pointer">
               <input
                 type="checkbox"
-                checked={riskLevels.high}
-                onChange={() => handleRiskLevelChange("high")}
+                checked={enginNodes.canalization}
+                onChange={() => handleRiskLevelChange("canalization")}
                 className="rounded"
               />
-              <span className="text-sm text-blue-600">Высокий</span>
+              <span className="text-sm">Канализация</span>
             </label>
             <label className="flex items-center space-x-2 cursor-pointer">
               <input
                 type="checkbox"
-                checked={riskLevels.medium}
-                onChange={() => handleRiskLevelChange("medium")}
+                checked={enginNodes.cityInfra}
+                onChange={() => handleRiskLevelChange("cityInfra")}
                 className="rounded"
               />
-              <span className="text-sm text-blue-600">Средний</span>
+              <span className="text-sm">ИКТ инфраструктура города</span>
             </label>
             <label className="flex items-center space-x-2 cursor-pointer">
               <input
                 type="checkbox"
-                checked={riskLevels.low}
-                onChange={() => handleRiskLevelChange("low")}
+                checked={enginNodes.powerSupply}
+                onChange={() => handleRiskLevelChange("powerSupply")}
                 className="rounded"
               />
-              <span className="text-sm text-blue-600">Низкий</span>
+              <span className="text-sm">Энергоснабжение</span>
+            </label>
+            <label className="flex items-center space-x-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={enginNodes.heatSupply}
+                onChange={() => handleRiskLevelChange("heatSupply")}
+                className="rounded"
+              />
+              <span className="text-sm">Теплоснабжение</span>
+            </label>
+            <label className="flex items-center space-x-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={enginNodes.gasSupply}
+                onChange={() => handleRiskLevelChange("gasSupply")}
+                className="rounded"
+              />
+              <span className="text-sm">Газоснабжение</span>
             </label>
           </div>
         </div>
 
-        {/* Infrastructure Categories */}
+        {/* Social Categories */}
         <div className="p-4 border-b">
-          <h3 className="font-medium text-gray-900 mb-3">Категория геоструктур:</h3>
+          <h3 className="font-medium text-gray-900 mb-3">Ключевые социальные объекты:</h3>
           <div className="space-y-2">
             <label className="flex items-center space-x-2 cursor-pointer">
               <input
                 type="checkbox"
-                checked={infrastructureCategories.landslides}
-                onChange={() => handleInfrastructureChange("landslides")}
+                checked={socialCategories.schools}
+                onChange={() => handleSocialChange("schools")}
                 className="rounded"
               />
-              <span className="text-sm text-blue-600">Оползни</span>
+              <span className="text-sm">Школы</span>
             </label>
             <label className="flex items-center space-x-2 cursor-pointer">
               <input
                 type="checkbox"
-                checked={infrastructureCategories.tectonicFaults}
-                onChange={() => handleInfrastructureChange("tectonicFaults")}
+                checked={socialCategories.ddo}
+                onChange={() => handleSocialChange("ddo")}
                 className="rounded"
               />
-              <span className="text-sm">Тектонические разломы</span>
+              <span className="text-sm">Детские сады</span>
             </label>
             <label className="flex items-center space-x-2 cursor-pointer">
               <input
                 type="checkbox"
-                checked={infrastructureCategories.mudflowPaths}
-                onChange={() => handleInfrastructureChange("mudflowPaths")}
+                checked={socialCategories.health}
+                onChange={() => handleSocialChange("health")}
                 className="rounded"
               />
-              <span className="text-sm">Селевые пути</span>
+              <span className="text-sm">Больницы</span>
+            </label>
+            <label className="flex items-center space-x-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={socialCategories.pppn}
+                onChange={() => handleSocialChange("pppn")}
+                className="rounded"
+              />
+              <span className="text-sm">ПППН</span>
             </label>
           </div>
         </div>
@@ -518,7 +613,7 @@ export default function MapComponent() {
 
       {activeLayer==="social" && (
         <div className="absolute bottom-8 right-4 p-3 bg-gray-50 rounded-md border">
-          <h4 className="text-xl font-semibold text-gray-700 mb-2">Legend of Social Objects</h4>
+          <h4 className="text-xl font-semibold text-gray-700 mb-2">Легенда социальных объектов</h4>
           <ul className="space-y-1">
             {socialLegend.map((item) => (
               <li key={item.label} className="flex items-center space-x-2">
