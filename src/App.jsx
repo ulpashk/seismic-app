@@ -1,55 +1,23 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import { useState } from "react";
-import MainDashboard from "./page/MainDashboard";
 import MainPage from "./page/MainPage";
 import RiskPage from "./page/RiskPage";
-import HeaderV from "./components/HeaderV";
+import Header from "./components/HeaderNew";
 import InfraPage from "./page/InfraPage";
+import AnalyticsPage from "./page/AnalyticsPage";
 
 function App() {
-  const [selectedDistrict, setSelectedDistrict] = useState("Все районы");
-  const [openDropDown, setOpenDropDown] = useState(false);
-  const [infoDropDown, setInfoDropDown] = useState(false);
-  const districts = [
-      "Все районы",
-      "Алатауский",
-      "Алмалинский",
-      "Ауэзовский",
-      "Бостандыкский",
-      "Жетысуский",
-      "Медеуский",
-      "Наурызбайский",
-      "Турксибский",
-  ];
-  
-  const selectDistrict = (district) => {
-      setSelectedDistrict(district);
-      setOpenDropDown(false);
-  };
   return (
     <Router>
       <div className="min-h-screen bg-gray-50">
-        <HeaderV/>
-        {/* <Header 
-            openDropDown={openDropDown} 
-            setOpenDropDown={setOpenDropDown}
-            selectedDistrict={selectedDistrict} 
-            districts={districts} 
-            selectDistrict={selectDistrict} 
-            infoDropDown={infoDropDown} 
-            setInfoDropDown={setInfoDropDown}
-        /> */}
+        <Header/>
         <Routes>
           <Route 
             path="/" 
             element={
-              <MainPage
-                selectedDistrict={selectedDistrict}
-                setSelectedDistrict={setSelectedDistrict}
-              />
+              <MainPage/>
             } 
           />
-          <Route 
+          {/* <Route 
             path="/dash" 
             element={
               <MainDashboard
@@ -57,9 +25,10 @@ function App() {
                 setSelectedDistrict={setSelectedDistrict}
               />
             } 
-          />
-          <Route path="/risk" element={<RiskPage selectedDistrict={selectedDistrict}/>} />
-          <Route path="/infrastructure" element={<InfraPage selectedDistrict={selectedDistrict}/>} />
+          /> */}
+          <Route path="/risk" element={<RiskPage/>} />
+          <Route path="/infrastructure" element={<InfraPage/>} />
+          <Route path="/analytics" element={<AnalyticsPage/>} />
         </Routes>
       </div>
     </Router>

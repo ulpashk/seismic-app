@@ -7,6 +7,7 @@ const urls = {
   repgis: "https://admin.smartalmaty.kz/api/v1/address/clickhouse/rep-gis-infra/?page_size=10000",
   social: "https://admin.smartalmaty.kz/api/v1/address/clickhouse/social-objects/?page_size=10000",
   building: "https://admin.smartalmaty.kz/api/v1/address/clickhouse/building-risk-tile/{z}/{x}/{y}.pbf",
+  seismicSafety: "https://admin.smartalmaty.kz/api/v1/chs/buildings-seismic-safety/?limit=10000",
 }
 
 const layerConfigs = {
@@ -89,7 +90,12 @@ const readinessLegend = [
   { label: "≥ 0.8", color: "#0c143d" },
 ]
 
-export default function MapComponent() {
+export default function InfraMap({
+  selectedDistrict,
+  enginNodes,
+  socialCategories,
+  buildingCategories
+}) {
   const mapContainer = useRef(null)
   const map = useRef(null)
   const [activeLayer, setActiveLayer] = useState("building")
@@ -97,33 +103,30 @@ export default function MapComponent() {
   const [error, setError] = useState(null)
   const [maplibreLoaded, setMaplibreLoaded] = useState(false)
   const API_KEY = "9zZ4lJvufSPFPoOGi6yZ"
-  const [enginNodes, setEnginNodes] = useState({
-    canalization: true,
-    powerSupply: true,
-    cityInfra: true,
-    heatSupply: true,
-    gasSupply: true,
-  })
-  const [socialCategories, setSocialCategories] = useState({
-    schools: true,
-    ddo: true,
-    health: true,
-    pppn: true,
-  })
+  // const [enginNodes, setEnginNodes] = useState({
+  //   canalization: true,
+  //   powerSupply: true,
+  //   cityInfra: true,
+  //   heatSupply: true,
+  //   gasSupply: true,
+  // })
 
-  const [selectedDistrict, setSelectedDistrict] = useState(["Все районы"])
-  const [districtDropdownOpen, setDistrictDropdownOpen] = useState(false)
-  const allDistricts = [
-      "Все районы",
-      "Алатауский",
-      "Алмалинский",
-      "Ауэзовский",
-      "Бостандыкский",
-      "Жетысуский",
-      "Медеуский",
-      "Наурызбайский",
-      "Турксибский",
-  ]
+  // 🔹 Build district query string
+  const buildQuery = () => {
+    const params = [];
+    if (
+      selectedDistrict.length > 0 &&
+      !(selectedDistrict.length === 1 && selectedDistrict[0] === "Все районы")
+    ) {
+      const districts = selectedDistrict
+        .filter((d) => d !== "Все районы")
+        .map((d) => `${d} район`)
+        .join(",");
+
+      params.push(`district=${encodeURIComponent(districts)}`);
+    }
+    return params.length ? `?${params.join("&")}` : "";
+  };
 
   useEffect(() => {
     // Load MapLibre GL CSS
@@ -144,6 +147,26 @@ export default function MapComponent() {
       if (script.parentNode) script.parentNode.removeChild(script)
     }
   }, [])
+
+  const buildRepgisUrl = () => {
+    const base = urls.repgis
+    const selected = Object.entries(enginNodes)
+      .filter(([_, enabled]) => enabled)
+      .map(([name]) => name) // тут уже русские названия
+
+    if (selected.length === 0) return base
+    return `${base}&cat_name=${selected.join(",")}`
+  }
+
+  // useEffect(() => {
+  //   if (activeLayer === "repgis") {
+  //     loadLayer("repgis")
+  //   }
+  // }, [enginNodes])
+
+  useEffect(() => {
+    loadLayer("repgis");
+  }, [enginNodes]);
 
   const loadBuildingLayer = () => {
     if (!map.current) return
@@ -167,28 +190,111 @@ export default function MapComponent() {
         "source-layer": config.sourceLayer,
         paint: {
           "fill-color": config.color,
-          "fill-opacity": 0.4, // semi-transparent
+          "fill-opacity": 0.4,
         },
       })
     }
 
-    // 🔹 Apply district filter if not "Все районы"
+     // ✅ Build filters
+    let filters = ["all"];
+
+    // 🔹 District filter
     if (selectedDistrict.length > 0 && !selectedDistrict.includes("Все районы")) {
-      map.current.setFilter("building-fill", [
+      filters.push([
         "in",
-        ["get", "district"], 
-        ["literal", selectedDistrict]   // supports multiple districts
+        ["get", "district"],
+        ["literal", selectedDistrict],
       ]);
-    } else {
-      map.current.setFilter("building-fill", true); // show all
     }
+
+    // 🔹 Building category filters
+    // const catFilters = [];
+    if (buildingCategories.highrise) {
+      filters.push(["==", ["get", "is_highrise_in_poly"], "True"]);
+    }
+    // if (buildingCategories.emergency) {
+    //   catFilters.push(["==", ["get", "is_emergency_building"], "True"]);
+    // }
+    // if (buildingCategories.seismic) {
+    //   catFilters.push(["==", ["get", "seismic_eval"], true]);
+    // }
+
+    // if (catFilters.length > 0) {
+    //   filters.push(["any", ...catFilters]); // OR logic between categories
+    // }
+
+    // ✅ Apply combined filter
+    map.current.setFilter("building-fill", filters);
+
+    // // 🔹 Apply district filter if not "Все районы"
+    // if (selectedDistrict.length > 0 && !selectedDistrict.includes("Все районы")) {
+    //   map.current.setFilter("building-fill", [
+    //     "in",
+    //     ["get", "district"], 
+    //     ["literal", selectedDistrict]   // supports multiple districts
+    //   ]);
+    // } else {
+    //   map.current.setFilter("building-fill", true); // show all
+    // }
   }
 
+  // useEffect(() => {
+  //   if (map.current && map.current.getLayer("building-fill")) {
+  //     loadBuildingLayer();
+  //   }
+  // }, [selectedDistrict, buildingCategories]);
+
   useEffect(() => {
-    if (map.current && map.current.getLayer("building-fill")) {
+    if (map.current) {
       loadBuildingLayer();
+      if (buildingCategories.seismicSafety) {
+        loadSeismicSafetyLayer();
+      } else if (map.current.getLayer("seismic-safety-fill")) {
+        map.current.setFilter("seismic-safety-fill", ["==", "___NONE___", "___NONE___"]);
+      }
     }
-  }, [selectedDistrict]);
+  }, [selectedDistrict, buildingCategories]);
+
+  const loadSeismicSafetyLayer = async () => {
+    if (!map.current) return;
+
+    const url = urls.seismicSafety;
+    const districtQuery = buildQuery(); // reuse your function
+    const fullUrl = districtQuery ? url + districtQuery : url;
+
+    const res = await fetch(fullUrl);
+    const data = await res.json();
+
+    if (!map.current.getSource("seismic-safety")) {
+      map.current.addSource("seismic-safety", {
+        type: "geojson",
+        data,
+      });
+    } else {
+      map.current.getSource("seismic-safety").setData(data);
+    }
+
+    if (!map.current.getLayer("seismic-safety-fill")) {
+      map.current.addLayer({
+        id: "seismic-safety-fill",
+        type: "fill",
+        source: "seismic-safety",
+        paint: {
+          "fill-color": "#d46a6a",
+          "fill-opacity": 0.5,
+        },
+      });
+    }
+
+    let filters = ["all"];
+
+    if (buildingCategories.seismicSafety) {
+      filters.push(["==", ["get", "is_emergency_building"], true]);
+      filters.push(["==", ["get", "seismic_eval"], true]);
+    }
+
+    map.current.setFilter("seismic-safety-fill", filters);
+  };
 
   useEffect(() => {
     if (!maplibreLoaded || map.current) return
@@ -208,6 +314,9 @@ export default function MapComponent() {
     // loadLayer("building")
     map.current.on("load", () => {
       loadBuildingLayer()
+
+      loadLayer("repgis");
+      loadLayer("social");
     })
   }, [maplibreLoaded])
 
@@ -220,20 +329,41 @@ export default function MapComponent() {
 
     try {
       // Remove old layers/sources
-      Object.keys(layerConfigs).forEach((key) => {
-        if (key === "building") return // keep base layer
-        if (map.current.getLayer(`${key}-polygons`)) map.current.removeLayer(`${key}-polygons`)
-        if (map.current.getLayer(`${key}-lines`)) map.current.removeLayer(`${key}-lines`)
-        if (map.current.getLayer(`${key}-points`)) map.current.removeLayer(`${key}-points`)
-        // if (map.current.getLayer(`${key}-fill`)) map.current.removeLayer(`${key}-fill`)
-        if (map.current.getSource(key)) map.current.removeSource(key)
-      })
+      // Object.keys(layerConfigs).forEach((key) => {
+      //   if (key === "building") return // keep base layer
+      //   if (map.current.getLayer(`${key}-polygons`)) map.current.removeLayer(`${key}-polygons`)
+      //   if (map.current.getLayer(`${key}-lines`)) map.current.removeLayer(`${key}-lines`)
+      //   if (map.current.getLayer(`${key}-points`)) map.current.removeLayer(`${key}-points`)
+      //   // if (map.current.getLayer(`${key}-fill`)) map.current.removeLayer(`${key}-fill`)
+      //   if (map.current.getSource(key)) map.current.removeSource(key)
+      // })
+
+      if (map.current.getSource(layerKey)) {
+        map.current.removeSource(layerKey)
+      }
+      if (map.current.getLayer(`${layerKey}-polygons`)) map.current.removeLayer(`${layerKey}-polygons`)
+      if (map.current.getLayer(`${layerKey}-lines`)) map.current.removeLayer(`${layerKey}-lines`)
+      if (map.current.getLayer(`${layerKey}-points`)) map.current.removeLayer(`${layerKey}-points`)
 
       const config = layerConfigs[layerKey]
 
       if (config.type === "geojson") {
+
+        let url = urls[layerKey]
+
+        // 🔹 Apply district filtering for ALL geojson layers
+        const districtFilter = buildQuery();
+        if (districtFilter) {
+          // if url already has query params → append with `&`
+          url += url.includes("?") ? `&${districtFilter.slice(1)}` : districtFilter;
+        }
+
+        // если это repgis – строим url с фильтрацией
+        if (layerKey === "repgis") {
+          url = buildRepgisUrl()
+        }
         // 🔹 Fetch GeoJSON data
-        const response = await fetch(urls[layerKey])
+        const response = await fetch(url)
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
 
         const data = await response.json()
@@ -379,194 +509,9 @@ export default function MapComponent() {
     loadLayer(layerKey)
   }
 
-  const handleRiskLevelChange = (level) => {
-    setEnginNodes((prev) => ({
-      ...prev,
-      [level]: !prev[level],
-    }))
-  }
-
-  const handleSocialChange = (category) => {
-    setSocialCategories((prev) => ({
-      ...prev,
-      [category]: !prev[category],
-    }))
-  }
-
-  const handleDistrictChange = (city) => {
-    setSelectedDistrict((prev) => {
-      if (prev.includes(city)) {
-        return prev.filter((c) => c !== city)
-      } else {
-        return [...prev, city]
-      }
-    })
-  }
-
-
   return (
-    <div className="w-full h-screen relative">
+    <div className="relative w-full h-[600px] rounded-lg shadow-md rounded-lg overflow-hidden">
 
-      <div className="absolute top-20 left-4 z-10 w-64 bg-white/95 backdrop-blur-sm rounded-lg border shadow-lg">
-        {/* City Selector */}
-        <div className="p-4 border-b">
-          <div className="relative">
-            <div
-              onClick={() => setDistrictDropdownOpen(!districtDropdownOpen)}
-              className="flex items-center justify-between px-3 py-2 border rounded-md text-sm cursor-pointer hover:bg-gray-50"
-            >
-              <span className="flex-1">
-                {selectedDistrict.length > 0 ? selectedDistrict.join(", ") : "Выберите район"}
-              </span>
-              <div className="flex items-center space-x-2">
-                <svg
-                  className={`w-4 h-4 transition-transform ${districtDropdownOpen ? "rotate-180" : ""}`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-            </div>
-
-            {districtDropdownOpen && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-md shadow-lg z-20">
-                <div className="p-2 space-y-1">
-                  {allDistricts.map((district) => (
-                    <label
-                      key={district}
-                      className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedDistrict.includes(district)}
-                        onChange={() => handleDistrictChange(district)}
-                        className="rounded"
-                      />
-                      <span className="text-sm">{district}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Risk Levels */}
-        <div className="p-4 border-b">
-          <h3 className="font-medium text-gray-900 mb-3">Ключевые инженерные узлы:</h3>
-          <div className="space-y-2">
-            <label className="flex items-center space-x-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={enginNodes.canalization}
-                onChange={() => handleRiskLevelChange("canalization")}
-                className="rounded"
-              />
-              <span className="text-sm">Канализация</span>
-            </label>
-            <label className="flex items-center space-x-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={enginNodes.cityInfra}
-                onChange={() => handleRiskLevelChange("cityInfra")}
-                className="rounded"
-              />
-              <span className="text-sm">ИКТ инфраструктура города</span>
-            </label>
-            <label className="flex items-center space-x-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={enginNodes.powerSupply}
-                onChange={() => handleRiskLevelChange("powerSupply")}
-                className="rounded"
-              />
-              <span className="text-sm">Энергоснабжение</span>
-            </label>
-            <label className="flex items-center space-x-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={enginNodes.heatSupply}
-                onChange={() => handleRiskLevelChange("heatSupply")}
-                className="rounded"
-              />
-              <span className="text-sm">Теплоснабжение</span>
-            </label>
-            <label className="flex items-center space-x-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={enginNodes.gasSupply}
-                onChange={() => handleRiskLevelChange("gasSupply")}
-                className="rounded"
-              />
-              <span className="text-sm">Газоснабжение</span>
-            </label>
-          </div>
-        </div>
-
-        {/* Social Categories */}
-        <div className="p-4 border-b">
-          <h3 className="font-medium text-gray-900 mb-3">Ключевые социальные объекты:</h3>
-          <div className="space-y-2">
-            <label className="flex items-center space-x-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={socialCategories.schools}
-                onChange={() => handleSocialChange("schools")}
-                className="rounded"
-              />
-              <span className="text-sm">Школы</span>
-            </label>
-            <label className="flex items-center space-x-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={socialCategories.ddo}
-                onChange={() => handleSocialChange("ddo")}
-                className="rounded"
-              />
-              <span className="text-sm">Детские сады</span>
-            </label>
-            <label className="flex items-center space-x-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={socialCategories.health}
-                onChange={() => handleSocialChange("health")}
-                className="rounded"
-              />
-              <span className="text-sm">Больницы</span>
-            </label>
-            <label className="flex items-center space-x-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={socialCategories.pppn}
-                onChange={() => handleSocialChange("pppn")}
-                className="rounded"
-              />
-              <span className="text-sm">ПППН</span>
-            </label>
-          </div>
-        </div>
-
-        {/* Population Statistics */}
-        <div className="p-4">
-          <h3 className="font-medium text-gray-900 mb-3">Население:</h3>
-          <div className="space-y-1 text-sm">
-            <div className="flex justify-between">
-              <span className="text-red-600 font-medium">Высокий</span>
-              <span>57020 - 2.49%</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Средний</span>
-              <span>454666 - 77.68%</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Низкий</span>
-              <span>1780159 - 19.83%</span>
-            </div>
-          </div>
-        </div>
-      </div>
       {/* Layer Switcher */}
       <div className="absolute top-20 right-4 z-10 p-4 bg-white/95 backdrop-blur-sm rounded-lg border shadow-lg">
         <h3 className="text-lg font-semibold mb-3 text-gray-900">Map Layers</h3>
