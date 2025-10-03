@@ -8,7 +8,7 @@ const urls = {
   social: "https://admin.smartalmaty.kz/api/v1/address/clickhouse/social-objects/?page_size=10000",
   building: "https://admin.smartalmaty.kz/api/v1/address/clickhouse/building-risk-tile/{z}/{x}/{y}.pbf",
   seismicSafety: "https://admin.smartalmaty.kz/api/v1/chs/buildings-seismic-safety/?limit=10000",
-}
+} 
 
 const layerConfigs = {
   readiness: {
@@ -80,6 +80,15 @@ const readinessLegend = [
   { label: "0.6 – 0.8", color: "#1d4ed8" },
   { label: "≥ 0.8", color: "#0c143d" },
 ]
+
+const buildingLegend = [
+  { label: "C2: Низкий GRI × ≤8 этажей — стандарт", color: "#4CAF50" },   // зелёный
+  { label: "B2: Средний GRI × ≤8 этажей — наблюдение", color: "#8BC34A" }, // светло-зелёный
+  { label: "A2: Высокий GRI × ≤8 этажей — аудит", color: "#CDDC39" },      // лаймовый
+  { label: "C1: Низкий GRI × Высокоэтажное — плановая проверка", color: "#FFC107" }, // янтарный
+  { label: "B1: Средний GRI × Высокоэтажное — наблюдение/усиление", color: "#FF9800" }, // оранжевый
+  { label: "A1: Высокий GRI × Высокоэтажное — приоритетный аудит", color: "#F44336" }, // красный
+];
 
 export default function InfraMap({
   selectedDistrict,
@@ -167,8 +176,22 @@ export default function InfraMap({
         source: "building",
         "source-layer": config.sourceLayer,
         paint: {
-          "fill-color": config.color,
-          "fill-opacity": 0.4,
+          "fill-color": [
+          "match",
+          ["get", "risk_category"],
+
+          "C2: Низкий GRI × ≤8 этажей — стандарт", "#4CAF50",        // зелёный
+          "B2: Средний GRI × ≤8 этажей — наблюдение", "#8BC34A",     // светло-зелёный
+          "A2: Высокий GRI × ≤8 этажей — аудит", "#CDDC39",          // лаймовый
+          "C1: Низкий GRI × Высокоэтажное — плановая проверка", "#FFC107",  // янтарный
+          "B1: Средний GRI × Высокоэтажное — наблюдение/усиление", "#FF9800", // оранжевый
+          "A1: Высокий GRI × Высокоэтажное — приоритетный аудит", "#F44336", // красный
+
+          /* default */ "#9E9E9E" // серый если не совпало
+        ],
+        "fill-opacity": 0.4,
+          // "fill-color": config.color,
+          // "fill-opacity": 0.4,
         },
       })
     }
@@ -260,6 +283,9 @@ export default function InfraMap({
       style: `https://api.maptiler.com/maps/basic-v2/style.json?key=${API_KEY}`,
       center: [76.9129, 43.222],
       zoom: 10,
+      pitch: 45,        // 👈 tilt for 3D
+      // bearing: -17.6,   // 👈 rotate
+      antialias: true 
     })
 
     map.current.addControl(new maplibregl.NavigationControl(), "top-right")
@@ -271,6 +297,39 @@ export default function InfraMap({
 
     //   loadLayer("repgis");
     //   loadLayer("social");
+
+    map.current.addSource("openfreemap", {
+      url: "https://tiles.openfreemap.org/planet",
+      type: "vector",
+    })
+
+    map.current.addLayer({
+      id: "3d-buildings",
+      source: "openfreemap",
+      "source-layer": "building",
+      type: "fill-extrusion",
+      minzoom: 15,
+      filter: ["!=", ["get", "hide_3d"], true],
+      paint: {
+        "fill-extrusion-color": [
+          "interpolate", ["linear"], ["get", "render_height"],
+          0, "lightgray",
+          200, "royalblue",
+          400, "lightblue"
+        ],
+        "fill-extrusion-height": [
+          "interpolate", ["linear"], ["zoom"],
+          15, 0,
+          16, ["get", "render_height"]
+        ],
+        "fill-extrusion-base": [
+          "interpolate", ["linear"], ["zoom"],
+          15, 0,
+          16, ["get", "render_min_height"]
+        ],
+        "fill-extrusion-opacity": 0.9
+      }
+    });
     })
   }, [maplibreLoaded])
 
@@ -434,20 +493,6 @@ export default function InfraMap({
     }
   }
 
-//   useEffect(() => {
-//     if (!map.current || !map.current.getLayer("social-points")) return;
-
-//     const selected = Object.entries(socialCategories)
-//       .filter(([_, enabled]) => enabled)
-//       .map(([key]) => key); // ["schools", "health", ...]
-
-//     if (selected.length === 0) {
-//       // hide everything
-//       map.current.setFilter("social-points", ["==", "category", "___NONE___"]);
-//     } else {
-//       map.current.setFilter("social-points", ["in", "category", ...selected]);
-//     }
-//   }, [socialCategories]);
 
     useEffect(() => {
     if (!map.current) return;
@@ -478,36 +523,6 @@ export default function InfraMap({
     }
     }, [socialCategories]);
 
-
-//   const handleLayerSwitch = (layerKey) => {
-//     setActiveLayer(layerKey)
-//     loadLayer(layerKey)
-//   }
-// const handleLayerSwitch = (layerKey) => {
-//   setActiveLayer(layerKey);
-
-//   // Hide other base layers
-//   if (map.current) {
-//     if (layerKey === "building") {
-//       if (map.current.getLayer("readiness-polygons")) map.current.setLayoutProperty("readiness-polygons", "visibility", "none");
-//       if (map.current.getLayer("readiness-lines")) map.current.setLayoutProperty("readiness-lines", "visibility", "none");
-//       if (map.current.getLayer("readiness-points")) map.current.setLayoutProperty("readiness-points", "visibility", "none");
-
-//       // Show building
-//       loadBuildingLayer();
-//     } else if (layerKey === "readiness") {
-//       // Hide building
-//       if (map.current.getLayer("building-fill")) map.current.setLayoutProperty("building-fill", "visibility", "none");
-
-//       // Load readiness
-//       loadLayer("readiness").then(() => {
-//         map.current.setLayoutProperty("readiness-polygons", "visibility", "visible");
-//         map.current.setLayoutProperty("readiness-lines", "visibility", "visible");
-//         map.current.setLayoutProperty("readiness-points", "visibility", "visible");
-//       });
-//     }
-//   }
-// };
 const handleLayerSwitch = (layerKey) => {
   setActiveLayer(layerKey);
 
@@ -576,9 +591,26 @@ const handleLayerSwitch = (layerKey) => {
       {/* Map Container */}
       <div ref={mapContainer} className="w-full h-full" />
 
+      {activeLayer === "building" && (
+        <div className="absolute bottom-8 right-4 p-3 bg-gray-50 rounded-md border shadow">
+          <h4 className="text-xl font-semibold text-gray-700 mb-2">Легенда</h4>
+          <ul className="space-y-1">
+            {buildingLegend.map((item) => (
+              <li key={item.label} className="flex items-center space-x-2">
+                <span
+                  className="w-4 h-4 rounded-sm"
+                  style={{ backgroundColor: item.color }}
+                />
+                <span className="text-xs text-gray-600">{item.label}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {activeLayer==="readiness" && (
         <div className="absolute bottom-8 right-4 p-3 bg-gray-50 rounded-md border">
-          <h4 className="text-xl font-semibold text-gray-700 mb-2">Legend: Readiness</h4>
+          <h4 className="text-xl font-semibold text-gray-700 mb-2">Легенда</h4>
           <ul className="space-y-1">
             {readinessLegend.map((item) => (
               <li key={item.label} className="flex items-center space-x-2">
@@ -593,22 +625,29 @@ const handleLayerSwitch = (layerKey) => {
         </div>
       )}
 
-      {activeLayer==="social" && (
-        <div className="absolute bottom-8 right-4 p-3 bg-gray-50 rounded-md border">
-          <h4 className="text-xl font-semibold text-gray-700 mb-2">Легенда социальных объектов</h4>
-          <ul className="space-y-1">
-            {socialLegend.map((item) => (
-              <li key={item.label} className="flex items-center space-x-2">
-                <span
-                  className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: item.color }}
-                />
-                <span className="text-xs text-gray-600">{item.label}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+        {Object.values(socialCategories).some(Boolean) && (
+          <div className="absolute bottom-8 left-4 p-3 bg-gray-50 rounded-md border">
+            <h4 className="text-xl font-semibold text-gray-700 mb-2">Легенда социальных объектов</h4>
+            <ul className="space-y-1">
+              {socialLegend
+                .filter(item => socialCategories[
+                  item.label === "Школы" ? "school" :
+                  item.label === "ПППН" ? "pppn" :
+                  item.label === "Больницы" ? "health" :
+                  item.label === "Детские сады" ? "ddo" : null
+                ])
+                .map((item) => (
+                  <li key={item.label} className="flex items-center space-x-2">
+                    <span
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: item.color }}
+                    />
+                    <span className="text-xs text-gray-600">{item.label}</span>
+                  </li>
+                ))}
+            </ul>
+          </div>
+        )}
     </div>
   )
 }

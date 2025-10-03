@@ -6,23 +6,20 @@ import {
   Bar,
   XAxis,
   YAxis,
-  CartesianGrid,
   Tooltip,
   ResponsiveContainer,
   Cell,
-  Legend,
+  LabelList,
 } from "recharts"
 
 export default function PopulationIRIHisto({ infraSummary }) {
-  // Define fixed order + colors
   const categories = [
-    { key: "Критическая (<0.40)", color: "#ef4444" },   // red
-    { key: "Низкая (0.40–0.59)", color: "#f97316" },    // orange
-    { key: "Умеренная (0.60–0.79)", color: "#eab308" }, // yellow
-    { key: "Высокая готовность (0.80–1.00)", color: "#22c55e" }, // green
+    { key: "Критическая (<0.40)", color: "#ef4444" },
+    { key: "Низкая (0.40–0.59)", color: "#f97316" },
+    { key: "Умеренная (0.60–0.79)", color: "#eab308" },
+    { key: "Высокая готовность (0.80–1.00)", color: "#22c55e" },
   ]
 
-  // Convert into chart data with fixed order
   const chartData = categories.map(({ key, color }) => ({
     iri: key,
     gri_pop_sum: infraSummary?.[key]?.gri_pop_sum || 0,
@@ -38,12 +35,27 @@ export default function PopulationIRIHisto({ infraSummary }) {
       <div className="p-6">
         {chartData.some(d => d.gri_pop_sum > 0) ? (
           <ResponsiveContainer width="100%" height={350}>
-            <BarChart data={chartData} margin={{ top: 20, right: 20, left: 0, bottom: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="iri" angle={-25} textAnchor="end" interval={0} height={80} tick={{ fontSize: 10 }} />
-              <YAxis tick={{ fontSize: 10 }} />
+            <BarChart
+              data={chartData}
+              margin={{ top: 20, right: 20, left: 0, bottom: 20 }}
+            >
+              <XAxis
+                dataKey="iri"
+                angle={-25}
+                textAnchor="end"
+                interval={0}
+                height={80}
+                tick={{ fontSize: 10 }}
+              />
+              <YAxis tick={false} axisLine={false} />
               <Tooltip formatter={(value) => value.toLocaleString()} />
-              <Bar dataKey="gri_pop_sum" name="Население (чел.)">
+              <Bar dataKey="gri_pop_sum" name="Население (чел.)" minPointSize={5}>
+                <LabelList
+                  dataKey="gri_pop_sum"
+                  position="top"
+                  formatter={(value) => value.toLocaleString()}
+                  style={{ fill: "#838383ff", fontSize: 12, fontWeight: "bold" }}
+                />
                 {chartData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}

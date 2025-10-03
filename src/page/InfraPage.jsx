@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import InfraMap from "../components/InfraPage/InfraMapInit";
 import InfraFilter from "../components/InfraPage/InfraFilter";
 

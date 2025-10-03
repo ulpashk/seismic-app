@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import BuildingPassport from "../components/AnalyticsPage/BuildingPassport";
-import { Info } from "lucide-react";
 import Indicators from "../components/AnalyticsPage/Indicators";
 import BuildingRiskCategoryHisto from "../components/AnalyticsPage/BuildingRiskCategoryHisto";
 import SocialObjectsIRIHisto from "../components/AnalyticsPage/SocialObjectsIRIHisto";
@@ -16,6 +15,8 @@ export default function AnalyticPage() {
   const [infraSummary, setInfraSummary] = useState({});
   const [districtAverages, setDistrictAverages] = useState({});
   const [totalBuildingsRisk, setTotalBuildingsRisk] = useState(1);
+  const [emergencyBuildings, setEmergencyBuildings] = useState(0);
+  const [seismicEvalCount, setSeismicEvalCount] = useState(0);
   const [a1Count, setA1Count] = useState(0) 
   const [selectedDistrict, setSelectedDistrict] = useState("Все районы");
   const districts = [
@@ -28,14 +29,13 @@ export default function AnalyticPage() {
     "Медеуский",
     "Наурызбайский",
     "Турксибский"
-];
+  ];
 
   useEffect(() => {
     async function fetchData() {
       try {
         setLoading(true);
 
-        // Fetch both APIs in parallel
         const [safetyRes, infraRes] = await Promise.all([
           fetch("https://admin.smartalmaty.kz/api/v1/chs/buildings-seismic-safety/?limit=10"),
           fetch("https://admin.smartalmaty.kz/api/v1/address/clickhouse/infra-readiness/?page_size=10000"),
@@ -51,6 +51,8 @@ export default function AnalyticPage() {
         // Save first API
         setSafetyData(safetyJson.results || []);
         setTotalBuildings(safetyJson.count);
+        setEmergencyBuildings(safetyJson.emergency_buildings_count);
+        setSeismicEvalCount(safetyJson.seismic_eval_count);
 
         // Process infra-readiness data
         const grouped = (infraJson.features || []).reduce((acc, feature) => {
@@ -72,7 +74,6 @@ export default function AnalyticPage() {
 
         setInfraSummary(grouped);
 
-        // --- NEW: Process average IRI by district_name ---
         const districtGroups = (infraJson.features || []).reduce((acc, feature) => {
           const props = feature.properties || {};
           const district = props.district_name || "Неизвестный район";
@@ -129,6 +130,8 @@ export default function AnalyticPage() {
             <Indicators
               totalBuildings={totalBuildings}
               a1Count={a1Count}
+              emergencyBuildings={emergencyBuildings}
+              seismicEvalCount={seismicEvalCount}
             />
             <BuildingPassport 
               totalBuildings={totalBuildings}

@@ -1,10 +1,9 @@
 import { Info } from "lucide-react"
 
 export default function DistrictReadinessTable({ districtAverages }) {
-  // Convert object { district: avg } into array
   const rows = Object.entries(districtAverages).map(([district, avg]) => ({
     district,
-    avg: avg.toFixed(3), // format to 3 decimals
+    avg: avg.toFixed(3),
   }))
 
   return (

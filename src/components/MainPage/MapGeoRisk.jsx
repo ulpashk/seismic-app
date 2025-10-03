@@ -67,6 +67,8 @@ export default function MapGeoRisk({mode, setMode, selectedDistrict, riskLevels,
         style: `https://api.maptiler.com/maps/basic-v2/style.json?key=${API_KEY}`,
         center: [76.886, 43.238],
         zoom: 10,
+        pitch: 45, 
+        antialias: true 
       });
       mapRef.current.addControl(new maplibregl.NavigationControl(), "top-right");
       overlayRef.current = new MapboxOverlay({ interleaved: true, layers: [] });
@@ -144,6 +146,39 @@ export default function MapGeoRisk({mode, setMode, selectedDistrict, riskLevels,
         mapRef.current.on("mouseleave", "geoRisk-fill", () => {
           mapRef.current.getCanvas().style.cursor = "";
         });
+
+        mapRef.current.addSource("openfreemap", {
+      url: "https://tiles.openfreemap.org/planet",
+      type: "vector",
+    })
+
+    mapRef.current.addLayer({
+      id: "3d-buildings",
+      source: "openfreemap",
+      "source-layer": "building",
+      type: "fill-extrusion",
+      minzoom: 15,
+      filter: ["!=", ["get", "hide_3d"], true],
+      paint: {
+        "fill-extrusion-color": [
+          "interpolate", ["linear"], ["get", "render_height"],
+          0, "lightgray",
+          200, "royalblue",
+          400, "lightblue"
+        ],
+        "fill-extrusion-height": [
+          "interpolate", ["linear"], ["zoom"],
+          15, 0,
+          16, ["get", "render_height"]
+        ],
+        "fill-extrusion-base": [
+          "interpolate", ["linear"], ["zoom"],
+          15, 0,
+          16, ["get", "render_min_height"]
+        ],
+        "fill-extrusion-opacity": 0.9
+      }
+    });
       });
     } else {
       const src = mapRef.current.getSource("geoRisk");
