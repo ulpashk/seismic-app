@@ -89,6 +89,41 @@ export default function MapGeoRisk({mode, setMode, selectedDistrict, riskLevels,
             "fill-opacity": 0.5,
           },
         });
+
+        // Now, call addGeoStructLayers, ensuring geoRisk-fill exists for 'beforeId'
+       const addGeoStructLayers = () => {
+         if (mapRef.current.getSource("geoStruct")) return; // Prevent re-adding if already there
+
+         mapRef.current.addSource("geoStruct", {
+           type: "geojson",
+           data: { type: "FeatureCollection", features: [] },
+         });
+
+         mapRef.current.addLayer({
+           id: "geoStruct-fill",
+           type: "fill",
+           source: "geoStruct",
+           paint: {
+             "fill-color": "#d6b83fff",
+             "fill-opacity": 0.4,
+           },
+           filter: ["==", "$type", "Polygon"],
+         },);
+
+         mapRef.current.addLayer({
+           id: "geoStruct-line",
+           type: "line",
+           source: "geoStruct",
+           paint: {
+             "line-color": "#539ad1ff",
+             "line-width": 2,
+           },
+           filter: ["==", "$type", "LineString"],
+         }, );
+         
+       };
+       addGeoStructLayers();
+
         mapRef.current.on("click", "geoRisk-fill", (e) => {
           const props = e.features?.[0]?.properties || {};
           new maplibregl.Popup({ closeButton: true })
@@ -130,108 +165,56 @@ export default function MapGeoRisk({mode, setMode, selectedDistrict, riskLevels,
     map.setPaintProperty("geoRisk-fill", "fill-color", fillColor);
   }, [mode]);
 
-  useEffect(() => {
-    if (!mapRef.current) return;
-    const map = mapRef.current;
-
-    const addGeoStructLayers = () => {
-      if (map.getSource("geoStruct")) return;
-
-      map.addSource("geoStruct", {
-        type: "geojson",
-        data: { type: "FeatureCollection", features: [] },
-      });
-
-      map.addLayer({
-        id: "geoStruct-fill",
-        type: "fill",
-        source: "geoStruct",
-        paint: {
-          "fill-color": "#d6b83fff",
-          "fill-opacity": 0.4,
-        },
-        filter: ["==", "$type", "Polygon"],
-      },
-        // "geoRisk-fill"
-    );
-
-      map.addLayer({
-        id: "geoStruct-line",
-        type: "line",
-        source: "geoStruct",
-        paint: {
-          "line-color": "#539ad1ff",
-          "line-width": 2,
-        },
-        filter: ["==", "$type", "LineString"],
-      },
-        // "geoRisk-fill"
-    );
-
-      const landslideSvg = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
-          <!-- white circle background -->
-          <circle cx="20" cy="20" r="18" fill="white" stroke="black" stroke-width="2"/>
-          <!-- yellow warning triangle -->
-          <path d="M20 8 L32 32 H8 Z" fill="#ffcc00" stroke="black" stroke-width="2"/>
-          <!-- exclamation line -->
-          <line x1="20" y1="14" x2="20" y2="24" stroke="black" stroke-width="2" stroke-linecap="round"/>
-          <!-- exclamation dot -->
-          <circle cx="20" cy="28" r="2" fill="black"/>
-        </svg>
-      `;
-
-      const img = new Image(40, 40);
-      img.onload = () => {
-        if (!map.hasImage("landslide-icon")) {
-          map.addImage("landslide-icon", img, { pixelRatio: 2 });
-        }
-
-        map.addLayer({
-          id: "geoStruct-point",
-          type: "symbol",
-          source: "geoStruct",
-          layout: {
-            "icon-image": "landslide-icon",
-            "icon-size": 0.8,
-            "icon-allow-overlap": true,
-          },
-          filter: ["==", "$type", "Point"],
-        },
-          // "geoRisk-fill"
-      );
-      };
-      img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(landslideSvg);
-    };
-
-    if (map.isStyleLoaded()) {
-      addGeoStructLayers();
-    } else {
-      map.once("style.load", addGeoStructLayers);
-    }
-  }, []);
-
 
   useEffect(() => {
     if (!mapRef.current || !geoStructData) return;
-    const src = mapRef.current.getSource("geoStruct");
+    const map = mapRef.current;
+
+    const src = map.getSource("geoStruct");
     if (src) {
       src.setData(geoStructData);
     }
+    // Remove old markers
+  if (map._geoStructMarkers) {
+    map._geoStructMarkers.forEach(m => m.remove());
+  }
+  map._geoStructMarkers = [];
+
+  // Add default markers for Point features
+  geoStructData.features
+    .filter(f => f.geometry.type === "Point")
+    .forEach(f => {
+      const coords = f.geometry.coordinates;
+
+      const marker = new maplibregl.Marker({
+        color: "#ff5722", // default pin with custom color
+        scale: 0.7        // make it smaller
+      })
+        .setLngLat(coords)
+        .setPopup(
+          new maplibregl.Popup({ offset: 25 }).setHTML(
+            `<b>Landslide</b><br/>District: ${f.properties?.district || "N/A"}`
+          )
+        )
+        .addTo(map);
+
+      map._geoStructMarkers.push(marker);
+    });
   }, [geoStructData]);
   
+
   useEffect(() => {
     if (!mapRef.current) return;
     const map = mapRef.current;
 
     // Landslides → Points
-    if (map.getLayer("geoStruct-point")) {
-      map.setLayoutProperty(
-        "geoStruct-point",
-        "visibility",
-        infrastructureCategories.landslides ? "visible" : "none"
-      );
-    }
+    // if (map.getLayer("geoStruct-point")) {
+    //   map.setLayoutProperty(
+    //     "geoStruct-point",
+    //     "visibility",
+    //     infrastructureCategories.landslides ? "visible" : "none"
+    //   );
+    // }
 
     // Tectonic Faults → Polygons
     if (map.getLayer("geoStruct-fill")) {
@@ -250,6 +233,14 @@ export default function MapGeoRisk({mode, setMode, selectedDistrict, riskLevels,
         infrastructureCategories.mudflowPaths ? "visible" : "none"
       );
     }
+
+    if (map._geoStructMarkers) {
+      map._geoStructMarkers.forEach(m => {
+        const el = m.getElement();
+        el.style.display = infrastructureCategories.landslides ? "block" : "none";
+      });
+    }
+    
   }, [infrastructureCategories]);
 
   useEffect(() => {
