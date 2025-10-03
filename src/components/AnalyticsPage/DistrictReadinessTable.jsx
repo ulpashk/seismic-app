@@ -1,6 +1,6 @@
 import { Info } from "lucide-react"
 
-export default function DistrictReadinessTable({ districtAverages = {} }) {
+export default function DistrictReadinessTable({ districtAverages }) {
   // Convert object { district: avg } into array
   const rows = Object.entries(districtAverages).map(([district, avg]) => ({
     district,
@@ -10,7 +10,7 @@ export default function DistrictReadinessTable({ districtAverages = {} }) {
   return (
     <div className="rounded-lg border bg-white shadow-sm">
       <div className="flex items-center justify-between border-b p-4">
-        <h2 className="text-base font-medium">Средний уровень готовности по районам</h2>
+        <h2 className="text-base font-medium">Уровень готовности по районам</h2>
         <Info className="h-4 w-4 text-gray-400" />
       </div>
       <div className="p-6 overflow-x-auto">

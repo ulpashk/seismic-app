@@ -10,6 +10,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   Cell,
+  Legend,
 } from "recharts"
 
 export default function PopulationIRIHisto({ infraSummary }) {
@@ -31,16 +32,16 @@ export default function PopulationIRIHisto({ infraSummary }) {
   return (
     <div className="rounded-lg border bg-white shadow-sm">
       <div className="flex items-center justify-between border-b p-4">
-        <h2 className="text-base font-medium">Население по индексу IRI</h2>
+        <h2 className="text-base font-medium">Население по зонам индексах IRI</h2>
         <Info className="h-4 w-4 text-gray-400" />
       </div>
       <div className="p-6">
         {chartData.some(d => d.gri_pop_sum > 0) ? (
           <ResponsiveContainer width="100%" height={350}>
-            <BarChart data={chartData} margin={{ top: 20, right: 20, left: 0, bottom: 60 }}>
+            <BarChart data={chartData} margin={{ top: 20, right: 20, left: 0, bottom: 20 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="iri" angle={-25} textAnchor="end" interval={0} height={80} />
-              <YAxis />
+              <XAxis dataKey="iri" angle={-25} textAnchor="end" interval={0} height={80} tick={{ fontSize: 10 }} />
+              <YAxis tick={{ fontSize: 10 }} />
               <Tooltip formatter={(value) => value.toLocaleString()} />
               <Bar dataKey="gri_pop_sum" name="Население (чел.)">
                 {chartData.map((entry, index) => (

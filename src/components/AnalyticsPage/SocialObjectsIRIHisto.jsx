@@ -41,10 +41,10 @@ export default function SocialObjectsIRIHisto({ infraSummary }) {
           <ResponsiveContainer width="100%" height={350}>
             <BarChart data={chartData} margin={{ top: 20, right: 20, left: 0, bottom: 60 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="iri" angle={-25} textAnchor="end" interval={0} height={80} />
-              <YAxis />
+              <XAxis dataKey="iri" angle={-25} textAnchor="end" interval={0} height={80} tick={{ fontSize: 10 }} />
+              <YAxis tick={{ fontSize: 10 }} />
               <Tooltip formatter={(value) => value.toLocaleString()} />
-              <Legend />
+              <Legend wrapperStyle={{ fontSize: 12 }}/>
               <Bar dataKey="cnt_ddo" stackId="a" fill="#ef4444" name="ДОУ" />
               <Bar dataKey="cnt_health" stackId="a" fill="#22c55e" name="Здравоохранение" />
               <Bar dataKey="cnt_pppn" stackId="a" fill="#2563eb" name="ПППН" />

@@ -6,14 +6,14 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from "recharts"
 
-export default function BuildingRiskCategoryHisto({setTotalBuildingsRisk}) {
+export default function BuildingRiskCategoryHisto({setTotalBuildingsRisk, setA1Count}) {
   const [data, setData] = useState([])
 
   useEffect(() => {
     async function fetchData() {
       try {
         const response = await fetch(
-          "https://admin.smartalmaty.kz/api/v1/address/postgis/building-risk/count-by-category/"
+          "https://admin.smartalmaty.kz/api/v1/address/postgis/buildings-risk/count-by-category/"
         )
         const json = await response.json()
 
@@ -25,12 +25,19 @@ export default function BuildingRiskCategoryHisto({setTotalBuildingsRisk}) {
 
         setTotalBuildingsRisk(json.count)
         setData(processed)
+
+        const a1 = json.results.find(item => item.risk_category.startsWith("A1"))
+        if (a1) {
+          setA1Count(a1.count)
+        }
       } catch (error) {
         console.error("Error fetching histogram data:", error)
       }
     }
     fetchData()
   }, [])
+
+  console.log(data)
 
   return (
     <div className="rounded-lg border bg-white shadow-sm">
@@ -49,10 +56,13 @@ export default function BuildingRiskCategoryHisto({setTotalBuildingsRisk}) {
                 textAnchor="end"
                 interval={0}
                 height={60}
+                tick={{ fontSize: 10 }} 
               />
-              <YAxis />
+              <YAxis 
+                tick={{ fontSize: 10 }} 
+              />
               <Tooltip />
-              <Legend />
+              <Legend wrapperStyle={{ fontSize: 12 }}/>
               <Bar dataKey="count" fill="#236FFF" />
             </BarChart>
           </ResponsiveContainer>

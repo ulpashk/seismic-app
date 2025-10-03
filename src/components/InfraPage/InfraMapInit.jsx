@@ -12,13 +12,26 @@ const urls = {
 
 const layerConfigs = {
   readiness: {
-    name: "Infrastructure Readiness",
+    name: "Готовность инфраструктуры",
     description: "MultiPolygon data showing infrastructure readiness",
     color: "#3b82f6", // blue
     type: "geojson",
   },
+  repgis: {
+    name: "Rep GIS Infrastructure",
+    description: "MultiPolygon, MultiLineString and Point data",
+    color: "#10b981", // green
+    type: "geojson",
+  },
+  social: {
+    name: "Social Objects",
+    description: "Point data showing social infrastructure",
+    // color: "#f59e0b", // amber
+    color: "#f59e0b", // amber
+    type: "geojson",
+  },
   building: {
-    name: "Building Risk",
+    name: "Риск зданий",
     description: "Vector tile of building risks",
     color: "#16a34a", // green
     type: "vector",
@@ -159,6 +172,9 @@ export default function InfraMap({
         },
       })
     }
+    else {
+  map.current.setLayoutProperty("building-fill", "visibility", "visible");
+}
 
      // ✅ Build filters
     let filters = ["all"];
@@ -253,8 +269,8 @@ export default function InfraMap({
     map.current.on("load", () => {
       loadBuildingLayer()
 
-      loadLayer("repgis");
-      loadLayer("social");
+    //   loadLayer("repgis");
+    //   loadLayer("social");
     })
   }, [maplibreLoaded])
 
@@ -355,7 +371,7 @@ export default function InfraMap({
               layerKey === "repgis"
                 ? pointPaintLogic.repgis.point
                 : pointPaintLogic[layerKey] || config.color,
-            "circle-radius": 6,
+            "circle-radius": 4,
             "circle-opacity": 0.8,
             "circle-stroke-color": "#ffffff",
             "circle-stroke-width": 2,
@@ -418,47 +434,139 @@ export default function InfraMap({
     }
   }
 
-  useEffect(() => {
-    if (!map.current || !map.current.getLayer("social-points")) return;
+//   useEffect(() => {
+//     if (!map.current || !map.current.getLayer("social-points")) return;
+
+//     const selected = Object.entries(socialCategories)
+//       .filter(([_, enabled]) => enabled)
+//       .map(([key]) => key); // ["schools", "health", ...]
+
+//     if (selected.length === 0) {
+//       // hide everything
+//       map.current.setFilter("social-points", ["==", "category", "___NONE___"]);
+//     } else {
+//       map.current.setFilter("social-points", ["in", "category", ...selected]);
+//     }
+//   }, [socialCategories]);
+
+    useEffect(() => {
+    if (!map.current) return;
 
     const selected = Object.entries(socialCategories)
-      .filter(([_, enabled]) => enabled)
-      .map(([key]) => key); // ["schools", "health", ...]
+        .filter(([_, enabled]) => enabled)
+        .map(([key]) => key);
 
     if (selected.length === 0) {
-      // hide everything
-      map.current.setFilter("social-points", ["==", "category", "___NONE___"]);
+        // nothing selected → hide or remove
+        if (map.current.getLayer("social-points")) {
+        map.current.setFilter("social-points", ["==", "category", "___NONE___"]);
+        }
     } else {
-      map.current.setFilter("social-points", ["in", "category", ...selected]);
+        // something selected → ensure layer is loaded
+        if (!map.current.getSource("social")) {
+        loadLayer("social").then(() => {
+            if (map.current.getLayer("social-points")) {
+            map.current.setFilter("social-points", ["in", "category", ...selected]);
+            }
+        });
+        } else {
+        // already loaded → just update filter
+        if (map.current.getLayer("social-points")) {
+            map.current.setFilter("social-points", ["in", "category", ...selected]);
+        }
+        }
     }
-  }, [socialCategories]);
+    }, [socialCategories]);
 
-  const handleLayerSwitch = (layerKey) => {
-    setActiveLayer(layerKey)
-    loadLayer(layerKey)
+
+//   const handleLayerSwitch = (layerKey) => {
+//     setActiveLayer(layerKey)
+//     loadLayer(layerKey)
+//   }
+// const handleLayerSwitch = (layerKey) => {
+//   setActiveLayer(layerKey);
+
+//   // Hide other base layers
+//   if (map.current) {
+//     if (layerKey === "building") {
+//       if (map.current.getLayer("readiness-polygons")) map.current.setLayoutProperty("readiness-polygons", "visibility", "none");
+//       if (map.current.getLayer("readiness-lines")) map.current.setLayoutProperty("readiness-lines", "visibility", "none");
+//       if (map.current.getLayer("readiness-points")) map.current.setLayoutProperty("readiness-points", "visibility", "none");
+
+//       // Show building
+//       loadBuildingLayer();
+//     } else if (layerKey === "readiness") {
+//       // Hide building
+//       if (map.current.getLayer("building-fill")) map.current.setLayoutProperty("building-fill", "visibility", "none");
+
+//       // Load readiness
+//       loadLayer("readiness").then(() => {
+//         map.current.setLayoutProperty("readiness-polygons", "visibility", "visible");
+//         map.current.setLayoutProperty("readiness-lines", "visibility", "visible");
+//         map.current.setLayoutProperty("readiness-points", "visibility", "visible");
+//       });
+//     }
+//   }
+// };
+const handleLayerSwitch = (layerKey) => {
+  setActiveLayer(layerKey);
+
+  if (!map.current) return;
+
+  if (layerKey === "building") {
+    // Hide readiness if exists
+    ["readiness-polygons", "readiness-lines", "readiness-points"].forEach(id => {
+      if (map.current.getLayer(id)) map.current.setLayoutProperty(id, "visibility", "none");
+    });
+
+    // Show building
+    loadBuildingLayer();
+  } else if (layerKey === "readiness") {
+    // Hide building
+    if (map.current.getLayer("building-fill")) {
+      map.current.setLayoutProperty("building-fill", "visibility", "none");
+    }
+
+    // Show readiness
+    if (map.current.getLayer("readiness-polygons")) {
+      // Already loaded → just show it
+      ["readiness-polygons", "readiness-lines", "readiness-points"].forEach(id => {
+        if (map.current.getLayer(id)) map.current.setLayoutProperty(id, "visibility", "visible");
+      });
+    } else {
+      // Not loaded yet → load it
+      loadLayer("readiness").then(() => {
+        ["readiness-polygons", "readiness-lines", "readiness-points"].forEach(id => {
+          if (map.current.getLayer(id)) map.current.setLayoutProperty(id, "visibility", "visible");
+        });
+      });
+    }
   }
+};
+
+
 
   return (
     <div className="relative w-full h-[600px] rounded-lg shadow-md rounded-lg overflow-hidden">
 
       {/* Layer Switcher */}
-      <div className="absolute top-20 right-4 z-10 p-4 bg-white/95 backdrop-blur-sm rounded-lg border shadow-lg">
-        <h3 className="text-lg font-semibold mb-3 text-gray-900">Map Layers</h3>
+      <div className="absolute top-5 left-4 z-10">
         <div className="space-y-2">
-          {Object.entries(layerConfigs).map(([key, config]) => (
-            <div key={key} className="space-y-1">
-              <div
-                onClick={() => handleLayerSwitch(key)}
-                className={`w-full px-3 py-2 rounded-md text-sm font-medium cursor-pointer transition-colors flex items-center justify-start ${
-                  activeLayer === key ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                } ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
-              >
-                <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: config.color }} />
-                {config.name}
-              </div>
-              <p className="text-xs text-gray-500 px-2">{config.description}</p>
-            </div>
-          ))}
+          {["building", "readiness"].map((key) => {
+                const config = layerConfigs[key];
+                return (
+                    <div key={key} className="space-y-1">
+                    <div
+                        onClick={() => handleLayerSwitch(key)}
+                        className={`w-full px-3 py-2 rounded-md text-xs font-medium cursor-pointer transition-colors flex items-center justify-start ${
+                        activeLayer === key ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        } ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
+                    >
+                        {config.name}
+                    </div>
+                    </div>
+                );
+            })}
         </div>
 
         {loading && <div className="mt-3 text-sm text-gray-500">Loading data...</div>}

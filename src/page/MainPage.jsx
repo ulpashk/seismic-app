@@ -17,7 +17,7 @@ export default function MainPage() {
     const [mode, setMode] = useState("grid");
 
     return (
-        <div className="grid grid-cols-6 gap-3">
+        <div className="grid grid-cols-6 p-4">
             <div className="p-4">
                 <GeoRiskFilter 
                     setRiskLevels={setRiskLevels} 

@@ -1,19 +1,19 @@
 import React, { useEffect, useState } from "react";
-import InfraMap from "../components/InfraPage/InfraMapV";
+import InfraMap from "../components/InfraPage/InfraMapInit";
 import InfraFilter from "../components/InfraPage/InfraFilter";
 
 export default function InfraPage() {
     
   const [enginNodes, setEnginNodes] = useState({
-    "Канализация": true,
-    "Электроснабжение": true,
-    "ИКТ инфраструктура города": true,
-    "Теплоснабжение": true,
-    "Газоснабжение": true,
+    "Канализация": false,
+    "Электроснабжение": false,
+    "ИКТ инфраструктура города": false,
+    "Теплоснабжение": false,
+    "Газоснабжение": false,
   })
 
   const [socialCategories, setSocialCategories] = useState({
-    schools: false,
+    school: false,
     ddo: false,
     health: false,
     pppn: false,
@@ -40,7 +40,7 @@ export default function InfraPage() {
       "Турксибский",
   ]
     return (
-        <div className="grid grid-cols-6 gap-3">
+        <div className="grid grid-cols-6 p-4">
             <div className="p-4">
                 <InfraFilter
                     setEnginNodes={setEnginNodes}

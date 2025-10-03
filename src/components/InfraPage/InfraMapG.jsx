@@ -17,6 +17,18 @@ const layerConfigs = {
     color: "#3b82f6", // blue
     type: "geojson",
   },
+  repgis: {
+    name: "Rep GIS Infrastructure",
+    description: "MultiPolygon, MultiLineString and Point data",
+    color: "#10b981", // green
+    type: "geojson",
+  },
+  social: {
+    name: "Social Objects",
+    description: "Point data showing social infrastructure",
+    color: "#f59e0b", // amber
+    type: "geojson",
+  },
   building: {
     name: "Building Risk",
     description: "Vector tile of building risks",
@@ -173,7 +185,6 @@ export default function InfraMap({
     }
 
     // 🔹 Building category filters
-    // const catFilters = [];
     if (buildingCategories.highrise) {
       filters.push(["==", ["get", "is_highrise_in_poly"], "True"]);
     }
@@ -249,14 +260,34 @@ export default function InfraMap({
     map.current.addControl(new maplibregl.NavigationControl(), "top-right")
     map.current.addControl(new maplibregl.FullscreenControl(), "top-right")
 
-    // loadLayer("building")
     map.current.on("load", () => {
       loadBuildingLayer()
-
-      loadLayer("repgis");
-      loadLayer("social");
     })
   }, [maplibreLoaded])
+
+  // Helper function to remove or hide all layers (except the one being loaded)
+const hideBaseLayers = (exceptLayerKey) => {
+  if (!map.current) return;
+
+  const baseLayers = ["building", "readiness"];
+
+  baseLayers.forEach((key) => {
+    const layerId = key === "building" ? "building-fill" : "readiness-fill";
+    if (map.current.getLayer(layerId)) {
+      if (key === exceptLayerKey) {
+        map.current.setLayoutProperty(layerId, "visibility", "visible");
+      } else {
+        map.current.setLayoutProperty(layerId, "visibility", "none");
+      }
+    }
+  });
+
+  // Hide seismic safety if building is not active
+  if (exceptLayerKey !== "building" && map.current.getLayer("seismic-safety-fill")) {
+    map.current.setLayoutProperty("seismic-safety-fill", "visibility", "none");
+  }
+};
+
 
   const loadLayer = async (layerKey) => {
     if (!map.current || !window.maplibregl) return
@@ -265,25 +296,26 @@ export default function InfraMap({
     setLoading(true)
     setError(null)
 
+    // Hide all other layers before loading the new one
+    hideBaseLayers(layerKey);
+
     try {
-
-      if (map.current.getSource(layerKey)) {
-        map.current.removeSource(layerKey)
-      }
-      if (map.current.getLayer(`${layerKey}-polygons`)) map.current.removeLayer(`${layerKey}-polygons`)
-      if (map.current.getLayer(`${layerKey}-lines`)) map.current.removeLayer(`${layerKey}-lines`)
-      if (map.current.getLayer(`${layerKey}-points`)) map.current.removeLayer(`${layerKey}-points`)
-
       const config = layerConfigs[layerKey]
 
       if (config.type === "geojson") {
+        // If the source already exists for this geojson layer, remove and re-add to ensure fresh data
+        if (map.current.getSource(layerKey)) {
+          if (map.current.getLayer(`${layerKey}-polygons`)) map.current.removeLayer(`${layerKey}-polygons`)
+          if (map.current.getLayer(`${layerKey}-lines`)) map.current.removeLayer(`${layerKey}-lines`)
+          if (map.current.getLayer(`${layerKey}-points`)) map.current.removeLayer(`${layerKey}-points`)
+          map.current.removeSource(layerKey)
+        }
 
         let url = urls[layerKey]
 
         // 🔹 Apply district filtering for ALL geojson layers
         const districtFilter = buildQuery();
         if (districtFilter) {
-          // if url already has query params → append with `&`
           url += url.includes("?") ? `&${districtFilter.slice(1)}` : districtFilter;
         }
 
@@ -321,7 +353,6 @@ export default function InfraMap({
           source: layerKey,
           filter: ["in", ["geometry-type"], ["literal", ["Polygon", "MultiPolygon"]]],
           paint: {
-            // "fill-color": config.color,
             "fill-color": layerKey === "repgis" ? pointPaintLogic.repgis.polygon : pointPaintLogic[layerKey] || config.color,
             "fill-opacity": 0.6,
             "fill-outline-color": config.color,
@@ -335,7 +366,7 @@ export default function InfraMap({
           source: layerKey,
           filter: ["in", ["geometry-type"], ["literal", ["LineString", "MultiLineString"]]],
           paint: {
-            "line-color": 
+            "line-color":
               layerKey === "repgis"
                 ? pointPaintLogic.repgis.line
                 : pointPaintLogic[layerKey] || config.color,
@@ -351,7 +382,7 @@ export default function InfraMap({
           source: layerKey,
           filter: ["==", ["geometry-type"], "Point"],
           paint: {
-            "circle-color": 
+            "circle-color":
               layerKey === "repgis"
                 ? pointPaintLogic.repgis.point
                 : pointPaintLogic[layerKey] || config.color,
@@ -360,7 +391,6 @@ export default function InfraMap({
             "circle-stroke-color": "#ffffff",
             "circle-stroke-width": 2,
           },
-          // "building-fill"
         })
 
         // fit bounds
@@ -391,26 +421,46 @@ export default function InfraMap({
         }
       }
 
-      if (config.type === "vector") {
-        // 🔹 Add vector tile source
-        map.current.addSource(layerKey, {
-          type: "vector",
-          tiles: [urls[layerKey]],
-          minzoom: 0,
-          maxzoom: 14,
-        })
+    //   if (config.type === "vector") {
+    //     // For vector layers (like 'building'), just make them visible if they are the active layer
+    //     if (layerKey === "building" && map.current.getLayer("building-fill")) {
+    //         map.current.setLayoutProperty("building-fill", "visibility", "visible");
+    //         // Also ensure seismic safety is handled if building is active
+    //         if (buildingCategories.seismicSafety && map.current.getLayer("seismic-safety-fill")) {
+    //             map.current.setLayoutProperty("seismic-safety-fill", "visibility", "visible");
+    //         } else if (map.current.getLayer("seismic-safety-fill")) {
+    //              map.current.setLayoutProperty("seismic-safety-fill", "visibility", "none");
+    //         }
+    //     }
+    //      if (layerKey === "seismicSafety" && map.current.getLayer("seismic-safety-fill")) {
+    //         map.current.setLayoutProperty("seismic-safety-fill", "visibility", "visible");
+    //     }
+    //     // If it's a vector layer and the source/layer doesn't exist, load it.
+    //     // This is mainly for initial load or if 'building' was removed by some other logic.
+    //     if (!map.current.getSource(layerKey) && layerKey === "building") {
+    //         loadBuildingLayer(); // Re-add building layer if it was somehow removed
+    //     }
+    //   }
 
-        map.current.addLayer({
-          id: `${layerKey}-fill`,
-          type: "fill",
-          source: layerKey,
-          "source-layer": config.sourceLayer,
-          paint: {
-            "fill-color": ["get", "config.color"],
-            "fill-opacity": 0.5,
-          },
-        })
+    if (config.type === "vector") {
+      // Vector base layers like 'building'
+      if (!map.current.getSource(layerKey)) {
+        loadBuildingLayer(); // load if not present
       }
+      // Make only the selected base layer visible
+      if (layerKey === "building" && map.current.getLayer("building-fill")) {
+        map.current.setLayoutProperty("building-fill", "visibility", "visible");
+
+        // Seismic safety only visible if building is active & selected
+        if (buildingCategories.seismicSafety && map.current.getLayer("seismic-safety-fill")) {
+          map.current.setLayoutProperty("seismic-safety-fill", "visibility", "visible");
+        }
+      }
+
+      if (layerKey === "readiness" && map.current.getLayer("readiness-fill")) {
+        map.current.setLayoutProperty("readiness-fill", "visibility", "visible");
+      }
+    }
     } catch (err) {
       console.error("Error loading layer:", err)
     } finally {
@@ -418,25 +468,105 @@ export default function InfraMap({
     }
   }
 
-  useEffect(() => {
-    if (!map.current || !map.current.getLayer("social-points")) return;
+    // useEffect(() => {
+    // if (!map.current) return;
 
-    const selected = Object.entries(socialCategories)
-      .filter(([_, enabled]) => enabled)
-      .map(([key]) => key); // ["schools", "health", ...]
+    // const selected = Object.entries(socialCategories)
+    //     .filter(([_, enabled]) => enabled)
+    //     .map(([key]) => key);
 
-    if (selected.length === 0) {
-      // hide everything
-      map.current.setFilter("social-points", ["==", "category", "___NONE___"]);
-    } else {
-      map.current.setFilter("social-points", ["in", "category", ...selected]);
+    // // if (activeLayer !== "social") { // Only apply filter if 'social' is the active layer
+    // //     // If social isn't active, ensure its layers are hidden or removed
+    // //     if (map.current.getLayer("social-points")) {
+    // //         map.current.setLayoutProperty("social-points", "visibility", "none");
+    // //         map.current.setLayoutProperty("social-polygons", "visibility", "none");
+    // //         map.current.setLayoutProperty("social-lines", "visibility", "none");
+    // //     }
+    // //     return;
+    // // }
+
+    // if (selected.length === 0) {
+    //     // nothing selected → hide all social layers if they exist
+    //     if (map.current.getLayer("social-points")) {
+    //         map.current.setFilter("social-points", ["==", "category", "___NONE___"]);
+    //         map.current.setFilter("social-polygons", ["==", "category", "___NONE___"]);
+    //         map.current.setFilter("social-lines", ["==", "category", "___NONE___"]);
+    //     }
+    // } else {
+    //     // something selected → ensure layer is loaded and visible
+    //     if (!map.current.getSource("social")) {
+    //         loadLayer("social").then(() => {
+    //             if (map.current.getLayer("social-points")) {
+    //                 map.current.setFilter("social-points", ["in", "category", ...selected]);
+    //                 map.current.setFilter("social-polygons", ["in", "category", ...selected]);
+    //                 map.current.setFilter("social-lines", ["in", "category", ...selected]);
+    //                 map.current.setLayoutProperty("social-points", "visibility", "visible");
+    //                 map.current.setLayoutProperty("social-polygons", "visibility", "visible");
+    //                 map.current.setLayoutProperty("social-lines", "visibility", "visible");
+    //             }
+    //         });
+    //     } else {
+    //         // already loaded → just update filter and ensure visibility
+    //         if (map.current.getLayer("social-points")) {
+    //             map.current.setFilter("social-points", ["in", "category", ...selected]);
+    //             map.current.setFilter("social-polygons", ["in", "category", ...selected]);
+    //             map.current.setFilter("social-lines", ["in", "category", ...selected]);
+    //             map.current.setLayoutProperty("social-points", "visibility", "visible");
+    //             map.current.setLayoutProperty("social-polygons", "visibility", "visible");
+    //             map.current.setLayoutProperty("social-lines", "visibility", "visible");
+    //         }
+    //     }
+    // }
+    // }, [socialCategories, activeLayer]);
+
+    useEffect(() => {
+        if (!map.current) return; // ✅ exit if map not ready
+
+        // Overlay: social
+        const selected = Object.entries(socialCategories)
+            .filter(([_, enabled]) => enabled)
+            .map(([key]) => key);
+
+        if (selected.length > 0) {
+            loadLayer("social").then(() => {
+            if (!map.current) return; // safety
+            if (map.current.getLayer("social-points")) {
+                map.current.setFilter("social-points", ["in", "category", ...selected]);
+                map.current.setFilter("social-polygons", ["in", "category", ...selected]);
+                map.current.setFilter("social-lines", ["in", "category", ...selected]);
+                map.current.setLayoutProperty("social-points", "visibility", "visible");
+                map.current.setLayoutProperty("social-polygons", "visibility", "visible");
+                map.current.setLayoutProperty("social-lines", "visibility", "visible");
+            }
+            });
+        } else {
+            // hide social if nothing selected
+            if (map.current.getLayer && map.current.getLayer("social-points")) {
+            map.current.setLayoutProperty("social-points", "visibility", "none");
+            map.current.setLayoutProperty("social-polygons", "visibility", "none");
+            map.current.setLayoutProperty("social-lines", "visibility", "none");
+            }
+        }
+        }, [socialCategories]);
+
+
+//   const handleLayerSwitch = (layerKey) => {
+//     setActiveLayer(layerKey)
+//     loadLayer(layerKey)
+//   }
+    const handleLayerSwitch = (layerKey) => {
+    setActiveLayer(layerKey);
+
+    // Hide other base layers
+    hideBaseLayers(layerKey);
+
+    // Load selected layer if needed
+    if (layerKey === "building") {
+        loadBuildingLayer();
+    } else if (layerKey === "readiness") {
+        loadLayer("readiness");
     }
-  }, [socialCategories]);
-
-  const handleLayerSwitch = (layerKey) => {
-    setActiveLayer(layerKey)
-    loadLayer(layerKey)
-  }
+    };
 
   return (
     <div className="relative w-full h-[600px] rounded-lg shadow-md rounded-lg overflow-hidden">
@@ -445,20 +575,23 @@ export default function InfraMap({
       <div className="absolute top-20 right-4 z-10 p-4 bg-white/95 backdrop-blur-sm rounded-lg border shadow-lg">
         <h3 className="text-lg font-semibold mb-3 text-gray-900">Map Layers</h3>
         <div className="space-y-2">
-          {Object.entries(layerConfigs).map(([key, config]) => (
-            <div key={key} className="space-y-1">
-              <div
-                onClick={() => handleLayerSwitch(key)}
-                className={`w-full px-3 py-2 rounded-md text-sm font-medium cursor-pointer transition-colors flex items-center justify-start ${
-                  activeLayer === key ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                } ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
-              >
-                <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: config.color }} />
-                {config.name}
-              </div>
-              <p className="text-xs text-gray-500 px-2">{config.description}</p>
-            </div>
-          ))}
+          {["building", "readiness"].map((key) => {
+                const config = layerConfigs[key];
+                return (
+                    <div key={key} className="space-y-1">
+                    <div
+                        onClick={() => handleLayerSwitch(key)}
+                        className={`w-full px-3 py-2 rounded-md text-sm font-medium cursor-pointer transition-colors flex items-center justify-start ${
+                        activeLayer === key ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        } ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
+                    >
+                        <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: config.color }} />
+                        {config.name}
+                    </div>
+                    <p className="text-xs text-gray-500 px-2">{config.description}</p>
+                    </div>
+                );
+            })}
         </div>
 
         {loading && <div className="mt-3 text-sm text-gray-500">Loading data...</div>}
