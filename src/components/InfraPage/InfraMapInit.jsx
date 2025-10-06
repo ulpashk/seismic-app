@@ -730,7 +730,7 @@ const handleLayerSwitch = (layerKey) => {
       )}
 
         {Object.values(socialCategories).some(Boolean) && (
-          <div className="absolute bottom-8 left-4 p-3 bg-gray-50 rounded-md border">
+          <div className="absolute bottom-8 z-40 left-[350px] p-3 bg-gray-50 rounded-md border">
             {/* <h4 className="text-lg font-semibold text-gray-700 mb-2">Легенда социальных объектов</h4> */}
             <ul className="space-y-1">
               {socialLegend
