@@ -19,6 +19,12 @@ export default function MapGeoRisk({mode, setMode, selectedDistrict, riskLevels,
     medium: "средний",
     low: "низкий",
   };
+  
+  const densityMap = {
+    high: "высокая",
+    medium: "средняя",
+    low: "низкая",
+  };
 
   const buildQuery = () => {
     const params = [];
@@ -299,7 +305,7 @@ export default function MapGeoRisk({mode, setMode, selectedDistrict, riskLevels,
     const map = mapRef.current;
     const selected = Object.entries(densityLevels)
       .filter(([_, enabled]) => enabled)
-      .map(([level]) => riskMap[level]);
+      .map(([level]) => densityMap[level]);
 
     if (selected.length === 0) {
       map.setFilter("geoRisk-fill", ["==", "density_level", "___NONE___"]);
