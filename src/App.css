@@ -41,3 +41,8 @@
 .histogram-container svg *:focus {
   outline: none;
 }
+
+.maplibregl-ctrl-top-right {
+  margin-top: 60px; /* adjust depending on your header height */
+  margin-right: 10px; /* optional */
+}

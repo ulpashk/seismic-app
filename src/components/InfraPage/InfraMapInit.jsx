@@ -380,7 +380,7 @@ export default function InfraMap({
     })
 
     map.current.addControl(new maplibregl.NavigationControl(), "top-right")
-    map.current.addControl(new maplibregl.FullscreenControl(), "top-right")
+    // map.current.addControl(new maplibregl.FullscreenControl(), "top-right")
 
     // loadLayer("building")
     map.current.on("load", () => {

@@ -13,6 +13,7 @@ export default function MapGeoRisk({mode, setMode, selectedDistrict, riskLevels,
 
   // 🔹 Caches
   const geoRiskCache = useRef({});
+  const geoStructCache = useRef(null);
 
   const riskMap = {
     high: "высокий",
@@ -47,12 +48,30 @@ export default function MapGeoRisk({mode, setMode, selectedDistrict, riskLevels,
   }, [selectedDistrict]);
 
 
+  // useEffect(() => {
+  //   const fetchData = async () => {
+  //     try {
+  //       const url = `https://admin.smartalmaty.kz/api/v1/address/clickhouse/geostructures/?page_size=5000`;
+  //       const res = await fetch(url);
+  //       const data = await res.json();
+  //       setGeoStructData(data);
+  //     } catch (err) {
+  //       console.error("Failed to fetch geoStructData", err);
+  //     }
+  //   };
+  //   fetchData();
+  // }, []);
   useEffect(() => {
     const fetchData = async () => {
+      if (geoStructCache.current) {
+        setGeoStructData(geoStructCache.current);
+        return;
+      }
+
       try {
-        const url = `https://admin.smartalmaty.kz/api/v1/address/clickhouse/geostructures/?page_size=5000`;
-        const res = await fetch(url);
+        const res = await fetch("https://admin.smartalmaty.kz/api/v1/address/clickhouse/geostructures/?page_size=5000");
         const data = await res.json();
+        geoStructCache.current = data;
         setGeoStructData(data);
       } catch (err) {
         console.error("Failed to fetch geoStructData", err);
@@ -61,11 +80,15 @@ export default function MapGeoRisk({mode, setMode, selectedDistrict, riskLevels,
     fetchData();
   }, []);
 
+
   useEffect(() => {
     if (!mapContainer.current) return;
     const API_KEY = "9zZ4lJvufSPFPoOGi6yZ";
     const tileUrl = `https://admin.smartalmaty.kz/api/v1/address/postgis/geo-risk-tile/{z}/{x}/{y}.pbf${districtFilter}`;
-    geoRiskCache.current[districtFilter] = tileUrl;
+    // geoRiskCache.current[districtFilter] = tileUrl;
+    if (!geoRiskCache.current[districtFilter]) {
+      geoRiskCache.current[districtFilter] = tileUrl;
+    }
 
     if (!mapRef.current) {
       mapRef.current = new maplibregl.Map({
@@ -284,35 +307,68 @@ export default function MapGeoRisk({mode, setMode, selectedDistrict, riskLevels,
     
   }, [infrastructureCategories]);
 
+  // useEffect(() => {
+  //   if (!mapRef.current || !mapRef.current.getLayer("geoRisk-fill")) return;
+
+  //   const map = mapRef.current;
+  //   const selected = Object.entries(riskLevels)
+  //     .filter(([_, enabled]) => enabled)
+  //     .map(([level]) => riskMap[level]);
+
+  //   if (selected.length === 0) {
+  //     map.setFilter("geoRisk-fill", ["==", "GRI_class", "___NONE___"]);
+  //   } else {
+  //     map.setFilter("geoRisk-fill", ["in", "GRI_class", ...selected]);
+  //   }
+  // }, [riskLevels]);
+
+  // useEffect(() => {
+  //   if (!mapRef.current || !mapRef.current.getLayer("geoRisk-fill")) return;
+
+  //   const map = mapRef.current;
+  //   const selected = Object.entries(densityLevels)
+  //     .filter(([_, enabled]) => enabled)
+  //     .map(([level]) => densityMap[level]);
+
+  //   if (selected.length === 0) {
+  //     map.setFilter("geoRisk-fill", ["==", "density_level", "___NONE___"]);
+  //   } else {
+  //     map.setFilter("geoRisk-fill", ["in", "density_level", ...selected]);
+  //   }
+  // }, [densityLevels]);
+
   useEffect(() => {
     if (!mapRef.current || !mapRef.current.getLayer("geoRisk-fill")) return;
-
     const map = mapRef.current;
-    const selected = Object.entries(riskLevels)
+
+    const riskFilter = ["in", "GRI_class"];
+    const selectedRisks = Object.entries(riskLevels)
       .filter(([_, enabled]) => enabled)
       .map(([level]) => riskMap[level]);
 
-    if (selected.length === 0) {
-      map.setFilter("geoRisk-fill", ["==", "GRI_class", "___NONE___"]);
+    if (selectedRisks.length > 0) {
+      riskFilter.push(...selectedRisks);
     } else {
-      map.setFilter("geoRisk-fill", ["in", "GRI_class", ...selected]);
+      // If no risks are selected, create a filter that matches nothing
+      riskFilter.push("NONE"); 
     }
-  }, [riskLevels]);
 
-  useEffect(() => {
-    if (!mapRef.current || !mapRef.current.getLayer("geoRisk-fill")) return;
-
-    const map = mapRef.current;
-    const selected = Object.entries(densityLevels)
+    const densityFilter = ["in", "density_level"];
+    const selectedDensities = Object.entries(densityLevels)
       .filter(([_, enabled]) => enabled)
       .map(([level]) => densityMap[level]);
 
-    if (selected.length === 0) {
-      map.setFilter("geoRisk-fill", ["==", "density_level", "___NONE___"]);
+    if (selectedDensities.length > 0) {
+      densityFilter.push(...selectedDensities);
     } else {
-      map.setFilter("geoRisk-fill", ["in", "density_level", ...selected]);
+      // If no densities are selected, create a filter that matches nothing
+      densityFilter.push("NONE");
     }
-  }, [densityLevels]);
+
+    // Combine filters: show features that match BOTH the risk AND density criteria
+    map.setFilter("geoRisk-fill", ["all", riskFilter, densityFilter]);
+
+  }, [riskLevels, densityLevels]);
 
   return (
     <div className="relative w-full h-full rounded-lg shadow-md rounded-lg overflow-hidden">
