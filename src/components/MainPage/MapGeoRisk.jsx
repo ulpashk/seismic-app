@@ -3,7 +3,7 @@ import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { MapboxOverlay } from "@deck.gl/mapbox";
 
-export default function MapGeoRisk({mode, setMode, selectedDistrict, riskLevels, infrastructureCategories}) {
+export default function MapGeoRisk({mode, setMode, selectedDistrict, riskLevels, infrastructureCategories, densityLevels}) {
   const mapContainer = useRef(null);
   const mapRef = useRef(null);
   const overlayRef = useRef(null);
@@ -101,7 +101,7 @@ export default function MapGeoRisk({mode, setMode, selectedDistrict, riskLevels,
            data: { type: "FeatureCollection", features: [] },
          });
 
-         mapRef.current.addLayer({
+         mapRef.current.addLayer({ 
            id: "geoStruct-fill",
            type: "fill",
            source: "geoStruct",
@@ -293,9 +293,24 @@ export default function MapGeoRisk({mode, setMode, selectedDistrict, riskLevels,
     }
   }, [riskLevels]);
 
+  useEffect(() => {
+    if (!mapRef.current || !mapRef.current.getLayer("geoRisk-fill")) return;
+
+    const map = mapRef.current;
+    const selected = Object.entries(densityLevels)
+      .filter(([_, enabled]) => enabled)
+      .map(([level]) => riskMap[level]);
+
+    if (selected.length === 0) {
+      map.setFilter("geoRisk-fill", ["==", "density_level", "___NONE___"]);
+    } else {
+      map.setFilter("geoRisk-fill", ["in", "density_level", ...selected]);
+    }
+  }, [densityLevels]);
+
   return (
-    <div className="relative w-full h-[600px] rounded-lg shadow-md rounded-lg overflow-hidden">
-      <div className="absolute top-1 left-1 flex items-center gap-2 z-10 p-4 pb-0">
+    <div className="relative w-full h-full rounded-lg shadow-md rounded-lg overflow-hidden">
+      {/* <div className="absolute top-20 left-1/2 -translate-x-1/2 flex items-center gap-2 z-10 p-4 pb-0">
         <button 
             onClick={() => setMode("grid")}
             className={`px-2 py-2 rounded-xl text-xs font-medium cursor-pointer transition-colors shadow-md
@@ -319,7 +334,32 @@ export default function MapGeoRisk({mode, setMode, selectedDistrict, riskLevels,
         >
             Плотность населения
         </button>
-    </div>
+      </div> */}
+      <div className="absolute top-20 left-1/2 -translate-x-1/2 z-10 flex items-center">
+        <div className="flex space-x-2">
+          {[
+            { key: "grid", label: "Гео-риски" },
+            { key: "population", label: "Плотность населения" },
+          ].map(({ key, label }) => (
+            <div key={key}>
+              <div
+                onClick={() => setMode(key)}
+                className={`w-full px-3 py-2 rounded-md text-xs font-medium cursor-pointer transition-colors flex items-center justify-center shadow-md
+                  ${
+                    mode === key
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+              >
+                {label}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* {loading && <div className="ml-3 text-sm text-gray-500">Загрузка...</div>}
+        {error && <div className="ml-3 text-sm text-red-600">{error}</div>} */}
+      </div>
       <div ref={mapContainer} className="w-full h-full" />
     </div>
   );

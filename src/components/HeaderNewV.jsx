@@ -26,21 +26,28 @@ export default function Header() {
   }
 
   const getHeaderContent = () => {
-    if (location.pathname === "/") {
-      return "Мониторинг сейсмической опасности"
-    } else if (location.pathname === "/infrastructure") {
+    if (location.pathname === "/infrastructure") {
       return "Мониторинг сейсмоустойчивости городских объектов"
+    } else {
+      return "Мониторинг сейсмической опасности"
     }
-    return null
   }
 
   return (
     <>
       <header className="border-b border-gray-200 bg-white">
         <div className="flex items-center justify-between px-6 py-3">
-          <div className="flex items-center gap-8">
+          {/* <div className="flex items-center gap-8"> */}
             <h1 className="text-lg font-semibold">{getHeaderContent()}</h1>
             <nav className="flex gap-2">
+            {location.pathname !== "/analytics" && (
+            <button
+              onClick={() => setIsMethodologyOpen(true)}
+              className="rounded-md border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50"
+            >
+              Методология
+            </button>
+          )}
               {tabs.map((tab) => {
                 const isActive = location.pathname === tab.href
                 return (
@@ -56,17 +63,6 @@ export default function Header() {
                 )
               })}
             </nav>
-          </div>
-
-          {/* Show "Методология" only if not on Analytics page */}
-          {location.pathname !== "/analytics" && (
-            <button
-              onClick={() => setIsMethodologyOpen(true)}
-              className="rounded-md border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50"
-            >
-              Методология
-            </button>
-          )}
         </div>
       </header>
 

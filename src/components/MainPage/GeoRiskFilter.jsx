@@ -1,14 +1,24 @@
 import { useState, useEffect } from "react";
 
 export default function GeoRiskFilter({
+  mode, 
+  setMode,
   setRiskLevels,
   riskLevels,
   setInfrastructureCategories,
   infrastructureCategories,
   setSelectedDistrict,
   selectedDistrict,
+  setDensityLevels,
+  densityLevels
 }) {
   const [cityDropdownOpen, setCityDropdownOpen] = useState(false);
+
+  const [openSections, setOpenSections] = useState({
+    risk: true,
+    density: true,
+    geostructure: true,
+  });
 
   const allDistricts = [
     "Все районы",
@@ -21,14 +31,17 @@ export default function GeoRiskFilter({
     "Наурызбайский",
     "Турксибский",
   ];
-
-  // ✅ Ensure "Все районы" is selected by default
+  
   useEffect(() => {
     if (!selectedDistrict || selectedDistrict.length === 0) {
       setSelectedDistrict(["Все районы"]);
     }
   }, [selectedDistrict, setSelectedDistrict]);
-
+  
+    const toggleSection = (section) => {
+      setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
+    };
+  
   const handleRiskLevelChange = (level) => {
     setRiskLevels((prev) => ({
       ...prev,
@@ -36,7 +49,14 @@ export default function GeoRiskFilter({
     }));
   };
 
-  const handleInfrastructureChange = (category) => {
+  const handleDensityLevelChange = (level) => {
+    setDensityLevels((prev) => ({
+      ...prev,
+      [level]: !prev[level],
+    }));
+  };
+
+  const handleInfrastructureChange = (category) => { 
     setInfrastructureCategories((prev) => ({
       ...prev,
       [category]: !prev[category],
@@ -57,7 +77,9 @@ export default function GeoRiskFilter({
   };
 
   return (
-    <div className="z-10 bg-white/95 backdrop-blur-sm rounded-xl border shadow-lg">
+    // <>
+    <div className="flex flex-col max-h-[90vh] bg-white/95 backdrop-blur-sm rounded-xl border shadow-lg overflow-hidden">
+    {/* <div className="z-10 bg-white/95 backdrop-blur-sm rounded-xl border shadow-lg"> */}
       <div className="px-4 pt-2 font-semibold">
         <h3>
           Фильтры
@@ -117,7 +139,16 @@ export default function GeoRiskFilter({
 
       {/* Risk Levels */}
       <div className="p-4 border-b">
-        <h3 className="font-semibold text-gray-900 mb-3">Уровень риска:</h3>
+        <div
+          className="flex justify-between items-center cursor-pointer"
+          onClick={() => toggleSection("risk")}
+        >
+          <h3 className="font-semibold text-gray-900 cursor-pointer text-sm">Уровень риска:</h3>
+          <span className="text-gray-500">
+            {openSections.risk ? "▾" : "▸"}
+          </span>
+        </div>
+        {openSections.risk && (
         <div className="space-y-2 text-sm">
           <label className="flex items-center space-x-2 cursor-pointer">
             <input
@@ -147,11 +178,66 @@ export default function GeoRiskFilter({
             <span>Низкий</span>
           </label>
         </div>
+        )}
+      </div>
+      
+      {/* Density Levels */}
+      <div className="p-4 border-b">
+        <div
+          className="flex justify-between items-center cursor-pointer"
+          onClick={() => toggleSection("density")}
+        >
+          <h3 className="font-semibold text-gray-900 cursor-pointer text-sm">Уровень плотности:</h3>
+          <span className="text-gray-500">
+            {openSections.density ? "▾" : "▸"}
+          </span>
+        </div>
+
+        {openSections.density && (
+        <div className="space-y-2 text-sm">
+          <label className="flex items-center space-x-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={densityLevels.high}
+              onChange={() => handleDensityLevelChange("high")}
+              className="form-checkbox"
+            />
+            <span>Высокий</span>
+          </label>
+          <label className="flex items-center space-x-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={densityLevels.medium}
+              onChange={() => handleDensityLevelChange("medium")}
+              className="form-checkbox"
+            />
+            <span>Средний</span>
+          </label>
+          <label className="flex items-center space-x-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={densityLevels.low}
+              onChange={() => handleDensityLevelChange("low")}
+              className="form-checkbox"
+            />
+            <span>Низкий</span>
+          </label>
+        </div>
+        )}
       </div>
 
       {/* Infrastructure */}
       <div className="p-4 border-b">
-        <h3 className="font-semibold text-gray-900 mb-3">Категория геоструктур:</h3>
+        <div
+          className="flex justify-between items-center cursor-pointer"
+          onClick={() => toggleSection("geostructure")}
+        >
+          <h3 className="font-semibold text-gray-900 cursor-pointer text-sm">Категория геоструктур:</h3>
+          <span className="text-gray-500">
+            {openSections.geostructure ? "▾" : "▸"}
+          </span>
+        </div>
+        {openSections.geostructure && (
         <div className="space-y-2 text-sm">
           <label className="flex items-center space-x-2 cursor-pointer">
             <input
@@ -181,8 +267,11 @@ export default function GeoRiskFilter({
             <span>Селевые пути</span>
           </label>
         </div>
+        )}
       </div>
-
+    {/* </div> */}
+    
+    <div className="z-10 bg-white/95 shadow-lg">
       {/* Population */}
       <div className="p-4">
         <h3 className="font-semibold text-gray-900 mb-3">Население:</h3>
@@ -202,5 +291,7 @@ export default function GeoRiskFilter({
         </div>
       </div>
     </div>
+    </div>
+    // </>
   );
 }

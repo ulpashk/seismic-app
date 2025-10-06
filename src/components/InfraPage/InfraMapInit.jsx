@@ -7,7 +7,7 @@ const urls = {
   repgis: "https://admin.smartalmaty.kz/api/v1/address/clickhouse/rep-gis-infra/?page_size=10000",
   social: "https://admin.smartalmaty.kz/api/v1/address/clickhouse/social-objects/?page_size=10000",
   building: "https://admin.smartalmaty.kz/api/v1/address/clickhouse/building-risk-tile/{z}/{x}/{y}.pbf",
-  seismicSafety: "https://admin.smartalmaty.kz/api/v1/chs/buildings-seismic-safety/?limit=10000",
+  seismicSafety: "https://admin.smartalmaty.kz/api/v1/chs/buildings-seismic-safety/?limit=1000",
 } 
 
 const layerConfigs = {
@@ -74,12 +74,12 @@ const socialLegend = [
 ]
 
 const readinessLegend = [
-  { label: "IRI < 0.2", color: "#e0f2fe" },
-  { label: "0.2 – 0.4", color: "#7dd3fc" },
-  { label: "0.4 – 0.6", color: "#3b82f6" },
-  { label: "0.6 – 0.8", color: "#1d4ed8" },
-  { label: "≥ 0.8", color: "#0c143d" },
-]
+  { label: "IRI < 0.2", color: "#e0f2fe", text: "Низкий" },
+  { label: "0.2 – 0.4", color: "#7dd3fc", text: "Средне-низкий" },
+  { label: "0.4 – 0.6", color: "#3b82f6", text: "Средний" },
+  { label: "0.6 – 0.8", color: "#1d4ed8", text: "Средне-высокий" },
+  { label: "≥ 0.8", color: "#0c143d", text: "Высокий" },
+];
 
 const buildingLegend = [
   { label: "C2: Низкий GRI × ≤8 этажей — стандарт", color: "#4CAF50" },   // зелёный
@@ -90,10 +90,17 @@ const buildingLegend = [
   { label: "A1: Высокий GRI × Высокоэтажное — приоритетный аудит", color: "#F44336" }, // красный
 ];
 
+const icons = {
+  school: "icons/school.png",
+  health: "icons/health.png",
+  pppn: "icons/pppn.png",
+  ddo: "icons/ddo.png"
+};
+
 export default function InfraMap({
   selectedDistrict,
   enginNodes,
-  socialCategories,
+  socialCategories, 
   buildingCategories
 }) {
   const mapContainer = useRef(null)
@@ -221,57 +228,141 @@ export default function InfraMap({
     map.current.setFilter("building-fill", filters);
   }
 
+  // useEffect(() => {
+  //   if (map.current) {
+  //     loadBuildingLayer();
+  //     if (buildingCategories.seismicSafety) {
+  //       loadSeismicSafetyLayer();
+  //     } else if (map.current.getLayer("seismic-safety-fill")) {
+  //       map.current.setFilter("seismic-safety-fill", ["==", "___NONE___", "___NONE___"]);
+  //     }
+  //   }
+  // }, [selectedDistrict, buildingCategories]);
+
   useEffect(() => {
-    if (map.current) {
-      loadBuildingLayer();
-      if (buildingCategories.seismicSafety) {
-        loadSeismicSafetyLayer();
-      } else if (map.current.getLayer("seismic-safety-fill")) {
-        map.current.setFilter("seismic-safety-fill", ["==", "___NONE___", "___NONE___"]);
+    if (!map.current) return;
+
+    // 🔹 Hide layer if none selected
+    if (!buildingCategories.seismicSafety && !buildingCategories.emergency && !buildingCategories.seismic) {
+      if (map.current.getLayer("seismic-safety-fill")) {
+        map.current.setLayoutProperty("seismic-safety-fill", "visibility", "none");
       }
+      return;
     }
+
+    // 🔹 Otherwise, load layer and show
+    loadSeismicSafetyLayer().then(() => {
+      if (map.current.getLayer("seismic-safety-fill")) {
+        map.current.setLayoutProperty("seismic-safety-fill", "visibility", "visible");
+      }
+    });
   }, [selectedDistrict, buildingCategories]);
 
   const loadSeismicSafetyLayer = async () => {
     if (!map.current) return;
 
-    const url = urls.seismicSafety;
-    const districtQuery = buildQuery(); // reuse your function
-    const fullUrl = districtQuery ? url + districtQuery : url;
+    let url = urls.seismicSafety;
+    const districtQuery = buildQuery();
 
-    const res = await fetch(fullUrl);
-    const data = await res.json();
+    // 🔹 Determine which type of data we are loading
+    let filterType = "all";
 
+    if (buildingCategories.emergency) {
+      url += "?category=is_emergency_building";
+      filterType = "is_emergency_building";
+    } else if (buildingCategories.seismic) {
+      url += "?category=seismic_eval";
+      filterType = "seismic_eval";
+    } else if (buildingCategories.seismicSafety) {
+      // all data → no extra category parameter
+      filterType = "all";
+    }
+
+    if (districtQuery) {
+      url += url.includes("?") ? `&${districtQuery.slice(1)}` : districtQuery;
+    }
+
+    // 🔹 Fetch data
+    const res = await fetch(url);
+    const rawData = await res.json();
+
+    // Check if we got features
+    if (!rawData?.results?.length) {
+      console.warn("No seismic safety data received");
+      return;
+    }
+
+    // 🔹 Convert to GeoJSON
+    const geojson = {
+      type: "FeatureCollection",
+      features: rawData.results
+        .filter((item) => item.geometry) // ensure geometry exists
+        .map((item) => ({
+          type: "Feature",
+          geometry: item.geometry,
+          properties: item,
+        })),
+    };
+
+    // 🔹 Determine color based on filter type
+    let fillColor = "#0066ff"; // blue
+    if (filterType === "is_emergency_building") fillColor = "#ff0000"; // red
+    else if (filterType === "seismic_eval") fillColor = "#00cc66"; // green
+
+    // 🔹 Add or update source
     if (!map.current.getSource("seismic-safety")) {
       map.current.addSource("seismic-safety", {
         type: "geojson",
-        data,
+        data: geojson,
       });
     } else {
-      map.current.getSource("seismic-safety").setData(data);
+      map.current.getSource("seismic-safety").setData(geojson);
     }
 
+    // 🔹 Add or update fill layer
     if (!map.current.getLayer("seismic-safety-fill")) {
       map.current.addLayer({
         id: "seismic-safety-fill",
         type: "fill",
         source: "seismic-safety",
         paint: {
-          "fill-color": "#d46a6a",
+          "fill-color": fillColor,
           "fill-opacity": 0.5,
+          "fill-outline-color": "#000000",
         },
       });
+    } else {
+      map.current.setPaintProperty("seismic-safety-fill", "fill-color", fillColor);
     }
 
-    let filters = ["all"];
-
-    if (buildingCategories.seismicSafety) {
+    // 🔹 Apply filters
+    const filters = ["all"];
+    if (filterType === "is_emergency_building") {
       filters.push(["==", ["get", "is_emergency_building"], true]);
+    } else if (filterType === "seismic_eval") {
       filters.push(["==", ["get", "seismic_eval"], true]);
     }
 
+    // If "all" → no filters
     map.current.setFilter("seismic-safety-fill", filters);
+
+    // 🔹 Fit map to data bounds
+    const maplibregl = window.maplibregl;
+    const bounds = new maplibregl.LngLatBounds();
+    geojson.features.forEach((f) => {
+      if (f.geometry?.type === "Polygon") {
+        f.geometry.coordinates[0].forEach((coord) => bounds.extend(coord));
+      } else if (f.geometry?.type === "Point") {
+        bounds.extend(f.geometry.coordinates);
+      }
+    });
+
+    if (!bounds.isEmpty()) {
+      map.current.fitBounds(bounds, { padding: 50 });
+    }
   };
+
+
 
   useEffect(() => {
     if (!maplibreLoaded || map.current) return
@@ -295,43 +386,53 @@ export default function InfraMap({
     map.current.on("load", () => {
       loadBuildingLayer()
 
-    //   loadLayer("repgis");
-    //   loadLayer("social");
+      // loadLayer("repgis");
+      // loadLayer("social");
 
-    map.current.addSource("openfreemap", {
-      url: "https://tiles.openfreemap.org/planet",
-      type: "vector",
-    })
+      map.current.addSource("openfreemap", {
+        url: "https://tiles.openfreemap.org/planet",
+        type: "vector",
+      })
 
-    map.current.addLayer({
-      id: "3d-buildings",
-      source: "openfreemap",
-      "source-layer": "building",
-      type: "fill-extrusion",
-      minzoom: 15,
-      filter: ["!=", ["get", "hide_3d"], true],
-      paint: {
-        "fill-extrusion-color": [
-          "interpolate", ["linear"], ["get", "render_height"],
-          0, "lightgray",
-          200, "royalblue",
-          400, "lightblue"
-        ],
-        "fill-extrusion-height": [
-          "interpolate", ["linear"], ["zoom"],
-          15, 0,
-          16, ["get", "render_height"]
-        ],
-        "fill-extrusion-base": [
-          "interpolate", ["linear"], ["zoom"],
-          15, 0,
-          16, ["get", "render_min_height"]
-        ],
-        "fill-extrusion-opacity": 0.9
+      map.current.addLayer({
+        id: "3d-buildings",
+        source: "openfreemap",
+        "source-layer": "building",
+        type: "fill-extrusion",
+        minzoom: 15,
+        filter: ["!=", ["get", "hide_3d"], true],
+        paint: {
+          "fill-extrusion-color": [
+            "interpolate", ["linear"], ["get", "render_height"],
+            0, "lightgray",
+            200, "royalblue",
+            400, "lightblue"
+          ],
+          "fill-extrusion-height": [
+            "interpolate", ["linear"], ["zoom"],
+            15, 0,
+            16, ["get", "render_height"]
+          ],
+          "fill-extrusion-base": [
+            "interpolate", ["linear"], ["zoom"],
+            15, 0,
+            16, ["get", "render_min_height"]
+          ],
+          "fill-extrusion-opacity": 0.9
+        }
+      });
+      for (const [key, url] of Object.entries(icons)) {
+        map.current.loadImage(url, (error, image) => {
+          if (error) throw error;
+          if (!map.current.hasImage(key)) {
+            map.current.addImage(key, image);
+          }
+        });
       }
-    });
-    })
+    }
+  )
   }, [maplibreLoaded])
+
 
   const loadLayer = async (layerKey) => {
     if (!map.current || !window.maplibregl) return
@@ -399,7 +500,7 @@ export default function InfraMap({
             // "fill-color": config.color,
             "fill-color": layerKey === "repgis" ? pointPaintLogic.repgis.polygon : pointPaintLogic[layerKey] || config.color,
             "fill-opacity": 0.6,
-            "fill-outline-color": config.color,
+            "fill-outline-color": "#000000",
           },
         })
 
@@ -562,30 +663,32 @@ const handleLayerSwitch = (layerKey) => {
 
 
   return (
-    <div className="relative w-full h-[600px] rounded-lg shadow-md rounded-lg overflow-hidden">
+    <div className="relative w-full h-full rounded-lg shadow-md rounded-lg overflow-hidden">
 
       {/* Layer Switcher */}
-      <div className="absolute top-5 left-4 z-10">
-        <div className="space-y-2">
+      <div className="absolute top-20 left-1/2 -translate-x-1/2 z-10 flex items-center">
+        <div className="flex space-x-2">
           {["building", "readiness"].map((key) => {
-                const config = layerConfigs[key];
-                return (
-                    <div key={key} className="space-y-1">
-                    <div
-                        onClick={() => handleLayerSwitch(key)}
-                        className={`w-full px-3 py-2 rounded-md text-xs font-medium cursor-pointer transition-colors flex items-center justify-start ${
-                        activeLayer === key ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                        } ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
-                    >
-                        {config.name}
-                    </div>
-                    </div>
-                );
-            })}
+            const config = layerConfigs[key];
+            return (
+              <div key={key}>
+                <div
+                  onClick={() => handleLayerSwitch(key)}
+                  className={`w-full px-3 py-2 rounded-md text-xs font-medium cursor-pointer transition-colors flex items-center justify-start ${
+                    activeLayer === key
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  } ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
+                >
+                  {config.name}
+                </div>
+              </div>
+            );
+          })}
         </div>
 
-        {loading && <div className="mt-3 text-sm text-gray-500">Loading data...</div>}
-        {error && <div className="mt-3 text-sm text-red-600">{error}</div>}
+        {loading && <div className="ml-3 text-sm text-gray-500">Загрузка...</div>}
+        {error && <div className="ml-3 text-sm text-red-600">{error}</div>}
       </div>
 
       {/* Map Container */}
@@ -593,7 +696,6 @@ const handleLayerSwitch = (layerKey) => {
 
       {activeLayer === "building" && (
         <div className="absolute bottom-8 right-4 p-3 bg-gray-50 rounded-md border shadow">
-          <h4 className="text-xl font-semibold text-gray-700 mb-2">Легенда</h4>
           <ul className="space-y-1">
             {buildingLegend.map((item) => (
               <li key={item.label} className="flex items-center space-x-2">
@@ -610,7 +712,6 @@ const handleLayerSwitch = (layerKey) => {
 
       {activeLayer==="readiness" && (
         <div className="absolute bottom-8 right-4 p-3 bg-gray-50 rounded-md border">
-          <h4 className="text-xl font-semibold text-gray-700 mb-2">Легенда</h4>
           <ul className="space-y-1">
             {readinessLegend.map((item) => (
               <li key={item.label} className="flex items-center space-x-2">
@@ -618,7 +719,10 @@ const handleLayerSwitch = (layerKey) => {
                   className="w-4 h-4 rounded-sm"
                   style={{ backgroundColor: item.color }}
                 />
-                <span className="text-xs text-gray-600">{item.label}</span>
+                <span className="text-xs text-gray-700 font-medium">
+                  {item.text} 
+                </span>
+                <span className="text-xs text-gray-500">({item.label})</span>
               </li>
             ))}
           </ul>
@@ -627,7 +731,7 @@ const handleLayerSwitch = (layerKey) => {
 
         {Object.values(socialCategories).some(Boolean) && (
           <div className="absolute bottom-8 left-4 p-3 bg-gray-50 rounded-md border">
-            <h4 className="text-xl font-semibold text-gray-700 mb-2">Легенда социальных объектов</h4>
+            {/* <h4 className="text-lg font-semibold text-gray-700 mb-2">Легенда социальных объектов</h4> */}
             <ul className="space-y-1">
               {socialLegend
                 .filter(item => socialCategories[

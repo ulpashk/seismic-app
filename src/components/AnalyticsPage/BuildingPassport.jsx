@@ -27,7 +27,7 @@ export default function BuildingPassport({
           {/* Circular chart */}
           <div className="relative" style={{ width: size, height: size }}>
             <svg
-              width={size}
+              width={size} 
               height={size}
               className="-rotate-90 transform"
             >

@@ -8,6 +8,11 @@ export default function MainPage() {
         medium: true,
         low: true,
     })
+    const [densityLevels, setDensityLevels] = useState({
+        high: true,
+        medium: true,
+        low: true,
+    })
     const [infrastructureCategories, setInfrastructureCategories] = useState({
         landslides: true,
         tectonicFaults: true,
@@ -17,28 +22,42 @@ export default function MainPage() {
     const [mode, setMode] = useState("grid");
 
     return (
-        <div className="grid grid-cols-6 p-4">
-            <div className="p-4">
+        // <div className="grid grid-cols-6 p-4">
+        <div className="relative w-full h-screen">
+            <MapGeoRisk 
+                mode={mode}
+                setMode={setMode}
+                selectedDistrict={selectedDistrict} 
+                riskLevels={riskLevels}
+                infrastructureCategories={infrastructureCategories}
+                densityLevels={densityLevels} 
+            />
+            <div className="absolute top-[80px] left-4 z-20 w-80">
                 <GeoRiskFilter 
+                    mode={mode}
+                    setMode={setMode}
                     setRiskLevels={setRiskLevels} 
                     riskLevels={riskLevels} 
                     setInfrastructureCategories={setInfrastructureCategories} 
                     infrastructureCategories={infrastructureCategories}
                     setSelectedDistrict={setSelectedDistrict}
                     selectedDistrict={selectedDistrict} 
+                    setDensityLevels={setDensityLevels}
+                    densityLevels={densityLevels}
                 />
             </div>
-            <div className="col-span-5">
+            {/* <div className="col-span-5">
                 <div className="p-4 pb-0">
                     <MapGeoRisk 
                         mode={mode}
                         setMode={setMode}
                         selectedDistrict={selectedDistrict} 
-                        riskLevels={riskLevels} 
+                        riskLevels={riskLevels}
                         infrastructureCategories={infrastructureCategories}
+                        densityLevels={densityLevels} 
                     />
                 </div>
-            </div>
+            </div> */}
         </div>
     )
 }

@@ -5,7 +5,7 @@ import BuildingRiskCategoryHisto from "../components/AnalyticsPage/BuildingRiskC
 import SocialObjectsIRIHisto from "../components/AnalyticsPage/SocialObjectsIRIHisto";
 import PopulationIRIHisto from "../components/AnalyticsPage/PopulationIRIHisto";
 import DistrictReadinessTable from "../components/AnalyticsPage/DistrictReadinessTable";
-import PopulationCritical from "../components/AnalyticsPage/PopulationCriticalHisto";
+import PopulationCriticalHisto from "../components/AnalyticsPage/PopulationCriticalHisto";
 
 export default function AnalyticPage() {
   const [loading, setLoading] = useState(true);
@@ -162,7 +162,7 @@ export default function AnalyticPage() {
         />
 
         {/* Population in Critical Zones */}
-        <PopulationCritical/>
+        <PopulationCriticalHisto/>
       </div>
     </div>
   );

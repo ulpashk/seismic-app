@@ -78,14 +78,18 @@ export default function InfraFilter({
     </span>
   );
 
+  const formatNumber = (num) => num?.toLocaleString("ru-RU");
+
   return (
-    <div className="z-10 bg-white/95 backdrop-blur-sm rounded-lg border shadow-lg">
-      <div className="px-4 pt-2 font-semibold">
-        <h3>Фильтры</h3>
+    <div className="flex flex-col h-[90vh] max-h-[90vh] bg-white/95 backdrop-blur-sm rounded-xl border shadow-lg overflow-hidden">
+    {/* Sticky Header + District Selector */}
+    <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b">
+      <div className="px-4 pt-3 pb-2 font-semibold text-base">
+        Фильтры
       </div>
 
-      {/* City Selector */}
-      <div className="p-4 border-b">
+      {/* District Selector */}
+      <div className="px-4 pb-3">
         <div className="relative">
           <div
             onClick={() => setDistrictDropdownOpen(!districtDropdownOpen)}
@@ -114,7 +118,7 @@ export default function InfraFilter({
           </div>
 
           {districtDropdownOpen && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-md shadow-lg z-20 max-h-44 overflow-y-auto">
+            <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-md shadow-lg z-30 max-h-44 overflow-y-auto">
               <div className="p-2 space-y-1 text-xs">
                 {allDistricts.map((district) => (
                   <label
@@ -135,15 +139,26 @@ export default function InfraFilter({
           )}
         </div>
       </div>
+    </div>
 
-      {/* Risk Levels */}
-      <div className="p-4 border-b">
-        <h3
+    {/* Scrollable filters */}
+    <div className="flex-1 overflow-y-auto px-4 pb-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
+      {/* Engineering Nodes */}
+      <div className="py-3 border-b">
+        <div
+          className="flex justify-between items-center cursor-pointer"
           onClick={() => toggleSection("risk")}
-          className="font-medium text-gray-900 mb-2 cursor-pointer text-sm"
         >
-          Ключевые инженерные узлы:
-        </h3>
+          <h3
+            // onClick={() => toggleSection("risk")}
+            className="font-medium text-gray-900 cursor-pointer text-sm"
+          >
+            Инженерные узлы:
+          </h3>
+          <span className="text-gray-500">
+            {openSections.risk ? "▾" : "▸"}
+          </span>
+        </div>
         {openSections.risk && (
           <div className={sectionStyle}>
             {[
@@ -171,13 +186,20 @@ export default function InfraFilter({
       </div>
 
       {/* Social Categories */}
-      <div className="p-4 border-b">
-        <h3
+      <div className="py-3 border-b">
+        <div
+          className="flex justify-between items-center cursor-pointer"
           onClick={() => toggleSection("social")}
-          className="font-medium text-gray-900 mb-2 cursor-pointer text-sm"
         >
-          Ключевые социальные объекты:
-        </h3>
+          <h3
+            className="font-medium text-gray-900 cursor-pointer text-sm"
+          >
+            Социальные объекты:
+          </h3>
+          <span className="text-gray-500">
+            {openSections.social ? "▾" : "▸"}
+          </span>
+        </div>
         {openSections.social && (
           <div className={sectionStyle}>
             {["school", "ddo", "health", "pppn"].map((cat) => (
@@ -207,13 +229,20 @@ export default function InfraFilter({
       </div>
 
       {/* Building Categories */}
-      <div className="p-4 border-b">
-        <h3
+      <div className="py-3">
+        <div
+          className="flex justify-between items-center cursor-pointer"
           onClick={() => toggleSection("building")}
-          className="font-medium text-gray-900 mb-2 cursor-pointer text-sm"
         >
-          Категория зданий:
-        </h3>
+          <h3
+            className="font-medium text-gray-900 cursor-pointer text-sm"
+          >
+            Категория зданий:
+          </h3>
+          <span className="text-gray-500">
+            {openSections.building ? "▾" : "▸"}
+          </span>
+        </div>
         {openSections.building && (
           <div className={sectionStyle}>
             {Object.entries(buildingCategories).map(([key, _]) => (
@@ -247,5 +276,41 @@ export default function InfraFilter({
         )}
       </div>
     </div>
+
+    {/* Static bottom section */}
+    <div className="border-t bg-white/95 backdrop-blur-sm p-4">
+      {/* Population */}
+      <div className="mb-4">
+        <h3 className="font-semibold text-gray-900 mb-3">Население:</h3>
+        <div className="space-y-1 text-sm">
+          <div className="flex justify-between">
+            <span className="font-medium">Высокий</span>
+            <span>57 020 - 2.49%</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Средний</span>
+            <span>454 666 - 77.68%</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Низкий</span>
+            <span>1 780 159 - 19.83%</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Cards */}
+      <div className="grid grid-cols-2 gap-2">
+        {[
+          { number: 1088, label: "Несейсмостойких зданий", color: "text-green-600" },
+          { number: 21539, label: "Объекты паспортизации", color: "text-red-600" },
+        ].map((stat, i) => (
+          <div key={i} className="text-center rounded-lg border bg-white shadow p-2">
+            <div className={`text-m font-bold ${stat.color}`}>{formatNumber(stat.number)}</div>
+            <p className="text-xs text-gray-500">{stat.label}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
   );
 }

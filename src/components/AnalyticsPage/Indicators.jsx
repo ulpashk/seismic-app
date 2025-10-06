@@ -1,6 +1,6 @@
 export default function Indicators({
     totalBuildings,
-    a1Count,
+    a1Count, 
     emergencyBuildings,
     seismicEvalCount
 }){
