@@ -72,7 +72,9 @@ export default function BuildingPassport({
               <div className="h-2 w-1/4 rounded-full bg-gradient-to-r from-red-500 to-orange-500" />
             </div>
             <div className="mt-2 flex justify-between text-xs text-gray-500">
+              <span>2018</span>
               <span>5 лет</span>
+              <span>2025</span>
             </div>
           </div>
         </div>

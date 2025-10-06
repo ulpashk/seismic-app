@@ -60,7 +60,7 @@ export default function BuildingRiskCategoryHisto({ setTotalBuildingsRisk, setA1
               />
               <YAxis tick={false} axisLine={false} />
               <Tooltip formatter={(value) => value.toLocaleString()} />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
+              {/* <Legend wrapperStyle={{ fontSize: 12 }} /> */}
               <Bar dataKey="count" fill="#236FFF" minPointSize={5}>
                 <LabelList
                   dataKey="count"
