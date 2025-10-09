@@ -1,5 +1,5 @@
 import { useState } from "react";
-import MapGeoRisk from "../components/MainPage/MapGeoRisk";
+import MapGeoRisk from "../components/MainPage/MapGeoRiskG";
 import GeoRiskFilter from "../components/MainPage/GeoRiskFilter";
 
 export default function MainPage() {
@@ -15,6 +15,7 @@ export default function MainPage() {
     })
     const [infrastructureCategories, setInfrastructureCategories] = useState({
         landslides: true,
+        // greedy: true,
         tectonicFaults: true,
         mudflowPaths: true,
     })
@@ -22,7 +23,6 @@ export default function MainPage() {
     const [mode, setMode] = useState("grid");
 
     return (
-        // <div className="grid grid-cols-6 p-4">
         <div className="relative w-full h-screen">
             <MapGeoRisk 
                 mode={mode}
@@ -46,18 +46,6 @@ export default function MainPage() {
                     densityLevels={densityLevels}
                 />
             </div>
-            {/* <div className="col-span-5">
-                <div className="p-4 pb-0">
-                    <MapGeoRisk 
-                        mode={mode}
-                        setMode={setMode}
-                        selectedDistrict={selectedDistrict} 
-                        riskLevels={riskLevels}
-                        infrastructureCategories={infrastructureCategories}
-                        densityLevels={densityLevels} 
-                    />
-                </div>
-            </div> */}
         </div>
     )
 }

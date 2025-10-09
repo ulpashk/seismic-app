@@ -60,12 +60,13 @@ export default function AnalyticPage() {
         const key = props.IRI_cat || "Неизвестно";
 
         if (!acc[key]) {
-            acc[key] = { cnt_ddo: 0, cnt_health: 0, cnt_pppn: 0, bldg_count: 0, gri_pop_sum: 0 };
+            acc[key] = { cnt_ddo: 0, cnt_health: 0, cnt_pppn: 0, cnt_school: 0, bldg_count: 0, gri_pop_sum: 0 };
         }
 
         acc[key].cnt_ddo += props.cnt_ddo || 0;
         acc[key].cnt_health += props.cnt_health || 0;
         acc[key].cnt_pppn += props.cnt_pppn || 0;
+        acc[key].cnt_school += props.cnt_school || 0;
         acc[key].bldg_count += props.bldg_count || 0;
         acc[key].gri_pop_sum += Number(props.gri_pop_sum) || 0;
 
@@ -148,12 +149,12 @@ export default function AnalyticPage() {
 
         {/* Social Objects by IRI Index */}
         <SocialObjectsIRIHisto
-            infraSummary={infraSummary}
+          infraSummary={infraSummary}
         />
 
         {/* Population by IRI Index */}
         <PopulationIRIHisto
-            infraSummary={infraSummary}
+          infraSummary={infraSummary}
         />
 
         {/* District Readiness Table */}

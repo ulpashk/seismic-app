@@ -1,0 +1,200 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>MapLibre + decode .pbf points (Geo-risk tiles)</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css" rel="stylesheet" />
+  <style>
+    body, html { height: 100%; margin: 0; }
+    #map { position: absolute; inset: 0; }
+    .topbar { position: absolute; z-index: 3; left: 10px; top: 10px; background: rgba(255,255,255,0.9); padding:8px; border-radius:6px; font-family: sans-serif; }
+    button { padding:6px 10px; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div class="topbar">
+    <strong>Geo-risk .pbf (points)</strong><br/>
+    <button id="loadTileBtn">Load tile at map center & decode points</button>
+    <span id="status" style="margin-left:10px"></span>
+  </div>
+
+  <script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
+  <!-- pbf and @mapbox/vector-tile for decoding MVT (.pbf) -->
+  <script src="https://unpkg.com/pbf@3.2.1/dist/pbf.min.js"></script>
+  <script src="https://unpkg.com/@mapbox/vector-tile@1.3.1/dist/vector-tile.min.js"></script>
+
+  <script>
+  // ---- CONFIG ----
+  // Tile URL (use exactly what you provided)
+  const TILE_URL = 'https://admin.smartalmaty.kz/api/v1/address/postgis/populated_geo_risk_tile/{z}/{x}/{y}.pbf';
+  // default map view (Almaty approx)
+  const DEFAULT_CENTER = [76.94, 43.25];
+  const DEFAULT_ZOOM = 12;
+  // ----------------
+
+  const map = new maplibregl.Map({
+    container: 'map',
+    style: {
+      version: 8,
+      sources: {},
+      layers: [{
+        id: 'bg',
+        type: 'background',
+        paint: { 'background-color': '#f8f8f8' }
+      }]
+    },
+    center: DEFAULT_CENTER,
+    zoom: DEFAULT_ZOOM
+  });
+
+  map.addControl(new maplibregl.NavigationControl({showCompass:false}));
+
+  const statusEl = document.getElementById('status');
+  function setStatus(txt) { statusEl.textContent = txt; }
+
+  // Convert lon/lat to tile X/Y integers
+  function lonLatToTile(lon, lat, z) {
+    const n = Math.pow(2, z);
+    const x = Math.floor((lon + 180) / 360 * n);
+    const latRad = lat * Math.PI / 180;
+    const y = Math.floor((1 - Math.log(Math.tan(latRad) + 1/Math.cos(latRad)) / Math.PI) / 2 * n);
+    return {x, y, z};
+  }
+
+  // Convert MVT local coords to lon/lat
+  // tileX / tileY are tile integer indexes; localX/localY come from feature geometry (0..extent)
+  function tileLocalToLonLat(tileX, tileY, z, localX, localY, extent) {
+    extent = extent || 4096; // typical default
+    const n = Math.pow(2, z);
+    const xFrac = (tileX + (localX / extent)) / n;
+    const yFrac = (tileY + (localY / extent)) / n;
+    const lon = xFrac * 360 - 180;
+    // convert yFrac (WebMercator fraction) to latitude
+    const lat = (180 / Math.PI) * (Math.atan(Math.sinh(Math.PI * (1 - 2 * yFrac))));
+    return [lon, lat];
+  }
+
+  // Clear existing markers we created
+  let createdMarkers = [];
+  function clearMarkers() {
+    createdMarkers.forEach(m => m.remove());
+    createdMarkers = [];
+  }
+
+  async function fetchAndDecodeTile(z, x, y) {
+    const url = TILE_URL.replace('{z}', z).replace('{x}', x).replace('{y}', y);
+    setStatus('fetching ' + z + '/' + x + '/' + y + ' …');
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Tile fetch failed: ' + res.status + ' ' + res.statusText);
+    const ab = await res.arrayBuffer();
+    const pbf = new Pbf(new Uint8Array(ab));
+    // decode vector tile
+    return new VectorTile(new Pbf(ab));
+  }
+
+  // Main worker: fetch tile, decode, add markers for point features
+  async function decodeTileAndAddPoints(z, x, y) {
+    clearMarkers();
+    try {
+      const vt = await fetchAndDecodeTile(z,x,y);
+      setStatus('decoded tile, scanning layers…');
+
+      // iterate layers
+      let totalPoints = 0;
+      for (const layerName in vt.layers) {
+        const layer = vt.layers[layerName];
+        const extent = layer.extent || 4096;
+        const featureCount = layer.length;
+        console.log('Layer', layerName, 'features:', featureCount, 'extent:', extent);
+
+        for (let i = 0; i < layer.length; i++) {
+          const feat = layer.feature(i);
+          // feature.type: 1=Point, 2=LineString, 3=Polygon (per MVT spec)
+          if (feat.type === 1) {
+            // loadGeometry returns array of points (for point it often returns [[{x,y}]] or [{x,y}])
+            const geoms = feat.loadGeometry();
+            // geoms can be array-of-arrays depending on library version
+            for (const g of geoms) {
+              // g might be an array of points or a point object
+              if (Array.isArray(g)) {
+                for (const p of g) {
+                  const [lon, lat] = tileLocalToLonLat(x, y, z, p.x, p.y, extent);
+                  addPointMarker(lon, lat, layerName, feat);
+                  totalPoints++;
+                }
+              } else if (g && typeof g.x === 'number') {
+                const [lon, lat] = tileLocalToLonLat(x, y, z, g.x, g.y, extent);
+                addPointMarker(lon, lat, layerName, feat);
+                totalPoints++;
+              }
+            }
+          }
+        }
+      }
+      setStatus('placed ' + totalPoints + ' point markers');
+    } catch (err) {
+      console.error(err);
+      setStatus('Error: ' + err.message);
+    }
+  }
+
+  // Add a MapLibre marker for a latitude/longitude with a popup showing properties
+  function addPointMarker(lon, lat, layerName, feat) {
+    const el = document.createElement('div');
+    el.style.width = '12px';
+    el.style.height = '12px';
+    el.style.borderRadius = '50%';
+    el.style.border = '2px solid white';
+    el.style.boxShadow = '0 0 4px rgba(0,0,0,0.4)';
+    // style by layer name (you can adjust)
+    if (layerName.toLowerCase().includes('emergency')) el.style.background = 'red';
+    else if (layerName.toLowerCase().includes('seismic')) el.style.background = 'green';
+    else el.style.background = '#1e88e5';
+
+    const marker = new maplibregl.Marker({element: el})
+      .setLngLat([lon, lat])
+      .setPopup(new maplibregl.Popup({offset: 12}).setHTML(buildPopupHtml(layerName, feat)))
+      .addTo(map);
+
+    createdMarkers.push(marker);
+  }
+
+  // Build popup HTML from the feature's properties (limited to a few props)
+  function buildPopupHtml(layerName, feat) {
+    const props = feat.properties || {};
+    // show all properties but limit long strings
+    let html = `<strong>Layer:</strong> ${escapeHtml(layerName)}<br/>`;
+    html += `<strong>Type:</strong> Point<br/>`;
+    html += `<strong>Properties:</strong><br/><ul style="padding-left:14px;margin:6px 0">`;
+    for (const k in props) {
+      let v = props[k];
+      if (typeof v === 'string' && v.length > 120) v = v.slice(0,120) + '…';
+      html += `<li><b>${escapeHtml(k)}</b>: ${escapeHtml(String(v))}</li>`;
+    }
+    html += '</ul>';
+    return html;
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // Button to decode tile covering current map center and zoom
+  document.getElementById('loadTileBtn').addEventListener('click', async () => {
+    const center = map.getCenter();
+    const z = Math.round(map.getZoom());
+    const {x, y, z: tz} = lonLatToTile(center.lng, center.lat, z);
+    setStatus(`loading tile z=${tz} x=${x} y=${y} …`);
+    await decodeTileAndAddPoints(tz, x, y);
+  });
+
+  // Also auto-run once on load
+  map.on('load', () => {
+    document.getElementById('loadTileBtn').click();
+  });
+
+  </script>
+</body>
+</html>

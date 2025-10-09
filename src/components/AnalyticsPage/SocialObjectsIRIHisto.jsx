@@ -28,6 +28,7 @@ export default function SocialObjectsIRIHisto({ infraSummary }) {
     const cnt_ddo = infraSummary?.[key]?.cnt_ddo || 0
     const cnt_health = infraSummary?.[key]?.cnt_health || 0
     const cnt_pppn = infraSummary?.[key]?.cnt_pppn || 0
+    const cnt_school = infraSummary?.[key]?.cnt_school || 0
     const total = cnt_ddo + cnt_health + cnt_pppn
 
     return {
@@ -51,9 +52,9 @@ export default function SocialObjectsIRIHisto({ infraSummary }) {
             <BarChart
               data={chartData.map(d => ({
                 ...d,
-                total: d.cnt_ddo + d.cnt_health + d.cnt_pppn
+                total: d.cnt_ddo + d.cnt_health + d.cnt_pppn + d.cnt_school
               }))}
-              margin={{ top: 30, right: 20, left: 0, bottom: 60 }}
+              margin={{ top: 30, right: 20, left: 40, bottom: 30 }}
               barCategoryGap="20%"
               barGap={2}
               barSize={60}
@@ -70,9 +71,10 @@ export default function SocialObjectsIRIHisto({ infraSummary }) {
               <Tooltip formatter={(value) => value.toLocaleString()} />
               <Legend wrapperStyle={{ fontSize: 12 }} />
 
-              <Bar dataKey="cnt_ddo" stackId="a" fill="#ef4444" name="ДОУ" />
-              <Bar dataKey="cnt_health" stackId="a" fill="#22c55e" name="Здравоохранение" />
-              <Bar dataKey="cnt_pppn" stackId="a" fill="#2563eb" name="ПППН">
+              <Bar dataKey="cnt_ddo" stackId="a" fill="#eab308" name="Детские сады" />
+              <Bar dataKey="cnt_health" stackId="a" fill="#dc2626" name="Больницы" />
+              <Bar dataKey="cnt_pppn" stackId="a" fill="#16a34a" name="ПППН"/>
+              <Bar dataKey="cnt_school" stackId="a" fill="#2563eb" name="Школы">
                 {/* custom label for totals */}
                 <LabelList
                   dataKey="total"

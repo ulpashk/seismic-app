@@ -1,6 +1,9 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { MapboxOverlay } from "@deck.gl/mapbox";
+import SocialIconLayer from "./map-icons/social-icons"
+import RepgisIconLayer from "./map-icons/repgis-icons"
 
 const urls = {
   readiness: "https://admin.smartalmaty.kz/api/v1/address/clickhouse/infra-readiness/?page_size=10000",
@@ -8,7 +11,7 @@ const urls = {
   social: "https://admin.smartalmaty.kz/api/v1/address/clickhouse/social-objects/?page_size=10000",
   building: "https://admin.smartalmaty.kz/api/v1/address/clickhouse/building-risk-tile/{z}/{x}/{y}.pbf",
   seismicSafety: "https://admin.smartalmaty.kz/api/v1/chs/buildings-seismic-safety/?limit=1000",
-} 
+}
 
 const layerConfigs = {
   readiness: {
@@ -65,13 +68,21 @@ const pointPaintLogic = {
     point: "#9333ea"      // purple
   }
 }
-
+ 
 const socialLegend = [
-  { label: "Школы", color: "#2563eb" },
-  { label: "ПППН", color: "#16a34a" },
-  { label: "Больницы", color: "#dc2626" },
-  { label: "Детские сады", color: "#eab308" },
-]
+  { label: "Школы", key: "school", color: "#2563eb" },
+  { label: "ПППН", key: "pppn", color: "#16a34a" },
+  { label: "Больницы", key: "health", color: "#dc2626" },
+  { label: "Детские сады", key: "ddo", color: "#eab308" },
+];
+
+const enginLegend = [
+  { label: "Канализация", key: "Канализация", color: "#0ea5e9", icon: "/icons/sewer.png" },
+  { label: "Электроснабжение", key: "Электроснабжение", color: "#f97316", icon: "/icons/electricity.png" },
+  { label: "ИКТ инфраструктура города", key: "ИКТ инфраструктура города", color: "#22c55e", icon: "/icons/ict.png" },
+  { label: "Теплоснабжение", key: "Теплоснабжение", color: "#ef4444", icon: "/icons/heat.png" },
+  { label: "Газоснабжение", key: "Газоснабжение", color: "#eab308", icon: "/icons/gas.png" },
+];
 
 const readinessLegend = [
   { label: "IRI < 0.2", color: "#e0f2fe", text: "Низкий" },
@@ -110,6 +121,7 @@ export default function InfraMap({
   const [error, setError] = useState(null)
   const [maplibreLoaded, setMaplibreLoaded] = useState(false)
   const API_KEY = "9zZ4lJvufSPFPoOGi6yZ"
+  const overlayRef = useRef(null);
 
   // 🔹 Build district query string
   const buildQuery = () => {
@@ -128,6 +140,7 @@ export default function InfraMap({
     return params.length ? `?${params.join("&")}` : "";
   };
 
+// mapp 
   useEffect(() => {
     // Load MapLibre GL CSS
     const cssLink = document.createElement("link")
@@ -148,19 +161,90 @@ export default function InfraMap({
     }
   }, [])
 
-  const buildRepgisUrl = () => {
-    const base = urls.repgis
-    const selected = Object.entries(enginNodes)
-      .filter(([_, enabled]) => enabled)
-      .map(([name]) => name) // тут уже русские названия
+  // const buildRepgisUrl = () => {
+  //   const base = urls.repgis
+  //   const selected = Object.entries(enginNodes)
+  //     .filter(([_, enabled]) => enabled)
+  //     .map(([name]) => name) // тут уже русские названия
 
-    if (selected.length === 0) return base
-    return `${base}&cat_name=${selected.join(",")}`
-  }
+  //   if (selected.length === 0) return base
+  //   return `${base}&cat_name=${selected.join(",")}`
+  // }
 
-  useEffect(() => {
-    loadLayer("repgis");
-  }, [enginNodes]);
+useEffect(() => {
+  if (!overlayRef.current || !map.current) return;
+
+  const updateRepgisLayer = async () => {
+    if (!window.cachedData?.repgis_full) {
+      const res = await fetch(urls.repgis);
+      const data = await res.json();
+      window.cachedData = window.cachedData || {};
+      window.cachedData.repgis_full = data.features
+        ? data
+        : {
+            type: "FeatureCollection",
+            features: (data.results || []).map(item => ({
+              type: "Feature",
+              geometry: item.geometry,
+              properties: item,
+            })),
+          };
+    }
+
+    const fullGeojson = window.cachedData.repgis_full;
+
+    const selectedCategories = Object.entries(enginNodes)
+      .filter(([, enabled]) => enabled)
+      .map(([name]) => name);
+
+    // Filter main polygons/lines
+    const filteredFeatures = fullGeojson.features.filter(f =>
+      selectedCategories.includes(f.properties.cat_name)
+    );
+
+    // ⬇️ Add marker_geojson points from polygons
+    const markerPoints = filteredFeatures
+  .filter(f => f.properties.marker_geojson)
+  .map(f => {
+    let markerGeom = f.properties.marker_geojson;
+
+    // 🧠 Handle both JSON string or already-parsed object
+    if (typeof markerGeom === "string") {
+      try {
+        markerGeom = JSON.parse(markerGeom);
+      } catch (e) {
+        console.warn("Invalid marker_geojson for feature:", f.properties.id);
+        return null;
+      }
+    }
+
+    // Validate geometry type
+    if (!markerGeom || markerGeom.type !== "Point") return null;
+
+    return {
+      type: "Feature",
+      geometry: markerGeom,
+      properties: f.properties,
+    };
+  })
+  .filter(Boolean);
+
+    // Merge all into one dataset
+    const mergedFeatures = [...filteredFeatures, ...markerPoints];
+
+    const repgisLayer = new RepgisIconLayer({
+      id: "repgis-layer",
+      data: mergedFeatures,
+    });
+
+    overlayRef.current.setProps({ layers: [repgisLayer] });
+  };
+
+  updateRepgisLayer();
+}, [enginNodes]);
+
+
+
 
   const loadBuildingLayer = () => {
     if (!map.current) return
@@ -227,17 +311,6 @@ export default function InfraMap({
     // ✅ Apply combined filter
     map.current.setFilter("building-fill", filters);
   }
-
-  // useEffect(() => {
-  //   if (map.current) {
-  //     loadBuildingLayer();
-  //     if (buildingCategories.seismicSafety) {
-  //       loadSeismicSafetyLayer();
-  //     } else if (map.current.getLayer("seismic-safety-fill")) {
-  //       map.current.setFilter("seismic-safety-fill", ["==", "___NONE___", "___NONE___"]);
-  //     }
-  //   }
-  // }, [selectedDistrict, buildingCategories]);
 
   useEffect(() => {
     if (!map.current) return;
@@ -362,8 +435,6 @@ export default function InfraMap({
     }
   };
 
-
-
   useEffect(() => {
     if (!maplibreLoaded || map.current) return
 
@@ -374,13 +445,11 @@ export default function InfraMap({
       style: `https://api.maptiler.com/maps/basic-v2/style.json?key=${API_KEY}`,
       center: [76.9129, 43.222],
       zoom: 10,
-      pitch: 45,        // 👈 tilt for 3D
-      // bearing: -17.6,   // 👈 rotate
+      pitch: 45,
       antialias: true 
     })
 
     map.current.addControl(new maplibregl.NavigationControl(), "top-right")
-    // map.current.addControl(new maplibregl.FullscreenControl(), "top-right")
 
     // loadLayer("building")
     map.current.on("load", () => {
@@ -393,6 +462,8 @@ export default function InfraMap({
         url: "https://tiles.openfreemap.org/planet",
         type: "vector",
       })
+      overlayRef.current = new MapboxOverlay({ interleaved: true });
+      map.current.addControl(overlayRef.current);
 
       map.current.addLayer({
         id: "3d-buildings",
@@ -433,6 +504,29 @@ export default function InfraMap({
   )
   }, [maplibreLoaded])
 
+  useEffect(() => {
+    if (!map.current || !map.current.getLayer("building-fill")) return;
+
+    const filters = ["all"];
+
+    // 🔹 District filter
+    if (selectedDistrict.length > 0 && !selectedDistrict.includes("Все районы")) {
+      filters.push([
+        "in",
+        ["get", "district"],
+        ["literal", selectedDistrict],
+      ]);
+    }
+
+    // 🔹 Highrise filter
+    if (buildingCategories.highrise) {
+      filters.push(["==", ["get", "is_highrise_in_poly"], "True"]);
+    }
+
+    // ✅ Apply filter dynamically
+    map.current.setFilter("building-fill", filters);
+  }, [buildingCategories, selectedDistrict]);
+
 
   const loadLayer = async (layerKey) => {
     if (!map.current || !window.maplibregl) return
@@ -464,9 +558,9 @@ export default function InfraMap({
         }
 
         // если это repgis – строим url с фильтрацией
-        if (layerKey === "repgis") {
-          url = buildRepgisUrl()
-        }
+        // if (layerKey === "repgis") {
+        //   url = buildRepgisUrl()
+        // }
         // 🔹 Fetch GeoJSON data
         const response = await fetch(url)
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
@@ -594,35 +688,45 @@ export default function InfraMap({
     }
   }
 
+useEffect(() => {
+  if (!overlayRef.current || !map.current) return;
 
-    useEffect(() => {
-    if (!map.current) return;
+  const fetchData = async () => {
+    if (window.cachedData?.social) return window.cachedData.social;
+    const res = await fetch(urls.social);
+    const data = await res.json();
+    const geojson = data.features
+      ? data
+      : {
+          type: "FeatureCollection",
+          features: (data.results || []).map((item) => ({
+            type: "Feature",
+            geometry: item.geometry,
+            properties: item,
+          })),
+        };
+    window.cachedData = window.cachedData || {};
+    window.cachedData.social = geojson;
+    return geojson;
+  };
 
+  fetchData().then((geojson) => {
     const selected = Object.entries(socialCategories)
-        .filter(([_, enabled]) => enabled)
-        .map(([key]) => key);
+      .filter(([_, enabled]) => enabled)
+      .map(([key]) => key);
 
-    if (selected.length === 0) {
-        // nothing selected → hide or remove
-        if (map.current.getLayer("social-points")) {
-        map.current.setFilter("social-points", ["==", "category", "___NONE___"]);
-        }
-    } else {
-        // something selected → ensure layer is loaded
-        if (!map.current.getSource("social")) {
-        loadLayer("social").then(() => {
-            if (map.current.getLayer("social-points")) {
-            map.current.setFilter("social-points", ["in", "category", ...selected]);
-            }
-        });
-        } else {
-        // already loaded → just update filter
-        if (map.current.getLayer("social-points")) {
-            map.current.setFilter("social-points", ["in", "category", ...selected]);
-        }
-        }
-    }
-    }, [socialCategories]);
+    const filtered = selected.length
+      ? geojson.features.filter((f) => selected.includes(f.properties.category))
+      : [];
+
+    const socialLayer = new SocialIconLayer({
+      id: "social-layer",
+      data: filtered,
+    });
+
+    overlayRef.current.setProps({ layers: [socialLayer] });
+  });
+}, [socialCategories]);
 
 const handleLayerSwitch = (layerKey) => {
   setActiveLayer(layerKey);
@@ -659,7 +763,6 @@ const handleLayerSwitch = (layerKey) => {
     }
   }
 };
-
 
 
   return (
@@ -729,24 +832,59 @@ const handleLayerSwitch = (layerKey) => {
         </div>
       )}
 
+      {Object.values(enginNodes).some(Boolean) && (
+        <div className="absolute bottom-8 z-40 left-[350px] p-3 bg-gray-50 rounded-md border shadow-md">
+          <ul className="space-y-1">
+            {enginLegend
+              .filter((item) => enginNodes[item.key])
+              .map((item) => (
+                <li key={item.label} className="flex items-center space-x-2">
+                  <div
+                    className="flex items-center justify-center rounded-full border"
+                    style={{
+                      borderColor: item.color,
+                      backgroundColor: "white",
+                      width: "24px",
+                      height: "24px",
+                    }}
+                  >
+                    <img
+                      src={item.icon}
+                      alt={item.label}
+                      className="w-4 h-4 object-contain"
+                    />
+                  </div>
+                  <span className="text-xs text-gray-700">{item.label}</span>
+                </li>
+              ))}
+          </ul>
+        </div>
+      )}
+
         {Object.values(socialCategories).some(Boolean) && (
-          <div className="absolute bottom-8 z-40 left-[350px] p-3 bg-gray-50 rounded-md border">
-            {/* <h4 className="text-lg font-semibold text-gray-700 mb-2">Легенда социальных объектов</h4> */}
+          <div className="absolute bottom-8 z-40 left-[350px] p-3 bg-gray-50 rounded-md border shadow-md">
             <ul className="space-y-1">
               {socialLegend
-                .filter(item => socialCategories[
-                  item.label === "Школы" ? "school" :
-                  item.label === "ПППН" ? "pppn" :
-                  item.label === "Больницы" ? "health" :
-                  item.label === "Детские сады" ? "ddo" : null
-                ])
+                .filter((item) => socialCategories[item.key])
                 .map((item) => (
                   <li key={item.label} className="flex items-center space-x-2">
-                    <span
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: item.color }}
-                    />
-                    <span className="text-xs text-gray-600">{item.label}</span>
+                    {/* white circle background + border to match map style */}
+                    <div
+                      className="flex items-center justify-center rounded-full border"
+                      style={{
+                        borderColor: item.color,
+                        backgroundColor: "white",
+                        width: "24px",
+                        height: "24px",
+                      }}
+                    >
+                      <img
+                        src={`/icons/${item.key}.png`}
+                        alt={item.label}
+                        className="w-4 h-4 object-contain"
+                      />
+                    </div>
+                    <span className="text-xs text-gray-700">{item.label}</span>
                   </li>
                 ))}
             </ul>
