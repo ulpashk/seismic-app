@@ -66,7 +66,7 @@ export default function MapGeoRisk({
 
       try {
         const res = await fetch(
-          `http://localhost:8000/api/v1/address/clickhouse/geostructures/${query}&page_size=5000`
+          `https://admin.smartalmaty.kz/api/v1/address/clickhouse/geostructures/${query}&page_size=5000`
         );
         const data = await res.json();
 
