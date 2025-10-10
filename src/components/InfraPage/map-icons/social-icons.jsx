@@ -1,6 +1,5 @@
 import { CompositeLayer } from "@deck.gl/core";
-import { IconLayer, TextLayer } from "@deck.gl/layers";
-import Supercluster from "supercluster";
+import { IconLayer } from "@deck.gl/layers";
 
 export default class SocialIconLayer extends CompositeLayer {
   renderLayers() {

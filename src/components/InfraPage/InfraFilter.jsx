@@ -310,11 +310,11 @@ export default function InfraFilter({
           </div>
           <div className="flex justify-between">
             <span>Средний</span>
-            <span>454 666 - 77.68%</span>
+            <span>454 666 - 19.83%</span>
           </div>
           <div className="flex justify-between">
             <span>Низкий</span>
-            <span>1 780 159 - 19.83%</span>
+            <span>1 780 159 - 77.68%</span>
           </div>
         </div>
       </div>

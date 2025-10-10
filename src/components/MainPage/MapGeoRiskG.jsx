@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { MapboxOverlay } from "@deck.gl/mapbox";
 
-export default function MapGeoRisk({mode, setMode, selectedDistrict, riskLevels, infrastructureCategories, densityLevels}) {
+export default function MapGeoRisk({mode, setMode, selectedDistrict, riskLevels, infrastructureCategories}) {
   const mapContainer = useRef(null);
   const mapRef = useRef(null);
   const overlayRef = useRef(null);
@@ -15,19 +15,13 @@ export default function MapGeoRisk({mode, setMode, selectedDistrict, riskLevels,
   const geoRiskCache = useRef({});
   const geoStructCache = useRef(null);
 
-  const riskMap = {
+  const riskMap = useRef({
     high: "высокий",
     medium: "средний",
     low: "низкий",
-  };
-  
-  const densityMap = {
-    high: "высокая",
-    medium: "средняя",
-    low: "низкая",
-  };
+  });
 
-  const buildQuery = () => {
+  const buildQuery = useCallback(() => {
     const params = [];
     if (
       selectedDistrict.length > 0 &&
@@ -41,11 +35,11 @@ export default function MapGeoRisk({mode, setMode, selectedDistrict, riskLevels,
       params.push(`district=${encodeURIComponent(districts)}`);
     }
     return params.length ? `?${params.join("&")}` : "";
-  };
+  }, [selectedDistrict]);
 
   useEffect(() => {
     setDistrictFilter(buildQuery());
-  }, [selectedDistrict]);
+  }, [selectedDistrict, buildQuery]);
 
 
   // useEffect(() => {
@@ -296,7 +290,7 @@ export default function MapGeoRisk({mode, setMode, selectedDistrict, riskLevels,
     const riskFilter = ["in", "GRI_class"];
     const selectedRisks = Object.entries(riskLevels)
       .filter(([_, enabled]) => enabled)
-      .map(([level]) => riskMap[level]);
+      .map(([level]) => riskMap.current[level]);
 
     if (selectedRisks.length > 0) {
       riskFilter.push(...selectedRisks);
@@ -325,7 +319,7 @@ export default function MapGeoRisk({mode, setMode, selectedDistrict, riskLevels,
         <div className="flex space-x-2">
           {[
             { key: "grid", label: "Гео-риски" },
-            { key: "population", label: "Плотность населения" },
+            // { key: "population", label: "Плотность населения" },
           ].map(({ key, label }) => (
             <div key={key}>
               <div

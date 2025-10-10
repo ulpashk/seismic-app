@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { Info } from "lucide-react"
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, LabelList
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList
 } from "recharts"
 
 export default function BuildingRiskCategoryHisto({ setTotalBuildingsRisk, setA1Count }) {
@@ -35,7 +35,7 @@ export default function BuildingRiskCategoryHisto({ setTotalBuildingsRisk, setA1
       }
     }
     fetchData()
-  }, [])
+  }, [setA1Count, setTotalBuildingsRisk])
 
   return (
     <div className="rounded-lg border bg-white shadow-sm">

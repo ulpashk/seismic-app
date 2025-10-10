@@ -8,10 +8,7 @@ import DistrictReadinessTable from "../components/AnalyticsPage/DistrictReadines
 import PopulationCriticalHisto from "../components/AnalyticsPage/PopulationCriticalHisto";
 
 export default function AnalyticPage() {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [totalBuildings, setTotalBuildings] = useState(0)
-  const [safetyData, setSafetyData] = useState([]);
   const [infraSummary, setInfraSummary] = useState({});
   const [districtAverages, setDistrictAverages] = useState({});
   const [totalBuildingsRisk, setTotalBuildingsRisk] = useState(1);
@@ -34,7 +31,6 @@ export default function AnalyticPage() {
   useEffect(() => {
     async function fetchData() {
       try {
-        setLoading(true);
 
         const [safetyRes, infraRes] = await Promise.all([
           fetch("https://admin.smartalmaty.kz/api/v1/chs/buildings-seismic-safety/?limit=10"),
@@ -49,7 +45,6 @@ export default function AnalyticPage() {
         const infraJson = await infraRes.json();
 
         // Save first API
-        setSafetyData(safetyJson.results || []);
         setTotalBuildings(safetyJson.count);
         setEmergencyBuildings(safetyJson.emergency_buildings_count);
         setSeismicEvalCount(safetyJson.seismic_eval_count);
@@ -100,9 +95,7 @@ export default function AnalyticPage() {
         setDistrictAverages(averages);
 
       } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
+        console.error("Error fetching data:", err.message);
       }
     }
 

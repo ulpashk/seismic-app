@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, useCallback } from "react"
 import { MapboxOverlay } from "@deck.gl/mapbox";
 import SocialIconLayer from "./map-icons/social-icons"
 import RepgisIconLayer from "./map-icons/repgis-icons"
@@ -124,7 +124,7 @@ export default function InfraMap({
   const overlayRef = useRef(null);
 
   // 🔹 Build district query string
-  const buildQuery = () => {
+  const buildQuery = useCallback(() => {
     const params = [];
     if (
       selectedDistrict.length > 0 &&
@@ -138,7 +138,7 @@ export default function InfraMap({
       params.push(`district=${encodeURIComponent(districts)}`);
     }
     return params.length ? `?${params.join("&")}` : "";
-  };
+  }, [selectedDistrict]);
 
 // mapp 
   useEffect(() => {
@@ -246,7 +246,7 @@ useEffect(() => {
 
 
 
-  const loadBuildingLayer = () => {
+  const loadBuildingLayer = useCallback(() => {
     if (!map.current) return
 
     const config = layerConfigs.building
@@ -310,28 +310,9 @@ useEffect(() => {
 
     // ✅ Apply combined filter
     map.current.setFilter("building-fill", filters);
-  }
+  }, [selectedDistrict, buildingCategories])
 
-  useEffect(() => {
-    if (!map.current) return;
-
-    // 🔹 Hide layer if none selected
-    if (!buildingCategories.seismicSafety && !buildingCategories.emergency && !buildingCategories.seismic) {
-      if (map.current.getLayer("seismic-safety-fill")) {
-        map.current.setLayoutProperty("seismic-safety-fill", "visibility", "none");
-      }
-      return;
-    }
-
-    // 🔹 Otherwise, load layer and show
-    loadSeismicSafetyLayer().then(() => {
-      if (map.current.getLayer("seismic-safety-fill")) {
-        map.current.setLayoutProperty("seismic-safety-fill", "visibility", "visible");
-      }
-    });
-  }, [selectedDistrict, buildingCategories]);
-
-  const loadSeismicSafetyLayer = async () => {
+  const loadSeismicSafetyLayer = useCallback(async () => {
     if (!map.current) return;
 
     let url = urls.seismicSafety;
@@ -433,7 +414,26 @@ useEffect(() => {
     if (!bounds.isEmpty()) {
       map.current.fitBounds(bounds, { padding: 50 });
     }
-  };
+  }, [buildingCategories, buildQuery]);
+
+  useEffect(() => {
+    if (!map.current) return;
+
+    // 🔹 Hide layer if none selected
+    if (!buildingCategories.seismicSafety && !buildingCategories.emergency && !buildingCategories.seismic) {
+      if (map.current.getLayer("seismic-safety-fill")) {
+        map.current.setLayoutProperty("seismic-safety-fill", "visibility", "none");
+      }
+      return;
+    }
+
+    // 🔹 Otherwise, load layer and show
+    loadSeismicSafetyLayer().then(() => {
+      if (map.current.getLayer("seismic-safety-fill")) {
+        map.current.setLayoutProperty("seismic-safety-fill", "visibility", "visible");
+      }
+    });
+  }, [selectedDistrict, buildingCategories, loadSeismicSafetyLayer]);
 
   useEffect(() => {
     if (!maplibreLoaded || map.current) return
@@ -502,7 +502,7 @@ useEffect(() => {
       }
     }
   )
-  }, [maplibreLoaded])
+  }, [maplibreLoaded, loadBuildingLayer])
 
   useEffect(() => {
     if (!map.current || !map.current.getLayer("building-fill")) return;

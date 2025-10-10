@@ -28,18 +28,8 @@ export default function InfraPage() {
 
   const [selectedDistrict, setSelectedDistrict] = useState(["Все районы"])
   const [districtDropdownOpen, setDistrictDropdownOpen] = useState(false)
-  const allDistricts = [
-      "Все районы",
-      "Алатауский",
-      "Алмалинский",
-      "Ауэзовский",
-      "Бостандыкский",
-      "Жетысуский",
-      "Медеуский",
-      "Наурызбайский",
-      "Турксибский",
-  ]
-    return (
+
+  return (
         <div className="relative w-full h-screen">
           {/* Fullscreen Map */}
           <InfraMap

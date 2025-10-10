@@ -13,8 +13,6 @@ import {
 } from "recharts"
 
 export default function SocialObjectsIRIHisto({ infraSummary }) {
-  const formatNumber = (num) => num.toLocaleString("ru-RU")
-
   // Define fixed categories order
   const categories = [
     { key: "Критическая (<0.40)", color: "#ef4444" },
@@ -29,13 +27,14 @@ export default function SocialObjectsIRIHisto({ infraSummary }) {
     const cnt_health = infraSummary?.[key]?.cnt_health || 0
     const cnt_pppn = infraSummary?.[key]?.cnt_pppn || 0
     const cnt_school = infraSummary?.[key]?.cnt_school || 0
-    const total = cnt_ddo + cnt_health + cnt_pppn
+    const total = cnt_ddo + cnt_health + cnt_pppn + cnt_school
 
     return {
       iri: key,
       cnt_ddo,
       cnt_health,
       cnt_pppn,
+      cnt_school,
       total,
     }
   })
@@ -50,10 +49,7 @@ export default function SocialObjectsIRIHisto({ infraSummary }) {
         {chartData.some(d => d.total > 0) ? (
           <ResponsiveContainer width="100%" height={350}>
             <BarChart
-              data={chartData.map(d => ({
-                ...d,
-                total: d.cnt_ddo + d.cnt_health + d.cnt_pppn + d.cnt_school
-              }))}
+              data={chartData}
               margin={{ top: 30, right: 20, left: 40, bottom: 30 }}
               barCategoryGap="20%"
               barGap={2}
