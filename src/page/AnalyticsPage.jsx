@@ -14,7 +14,7 @@ export default function AnalyticPage() {
   const [totalBuildingsRisk, setTotalBuildingsRisk] = useState(1);
   const [emergencyBuildings, setEmergencyBuildings] = useState(0);
   const [seismicEvalCount, setSeismicEvalCount] = useState(0);
-  const [a1Count, setA1Count] = useState(0) 
+  const [a1Count, setA1Count] = useState(0);
   const [selectedDistrict, setSelectedDistrict] = useState("Все районы");
   const districts = [
     "Все районы",
@@ -102,6 +102,40 @@ export default function AnalyticPage() {
     fetchData();
   }, []);
 
+  const [chartData, setChartData] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true)
+      setError(null)
+
+      try {
+        // Формируем URL
+        let url =
+          "https://admin.smartalmaty.kz/api/v1/address/clickhouse/infra-readiness/stat-by-iri-cat/"
+        if (selectedDistrict && selectedDistrict !== "Все районы") {
+          const encodedDistrict = encodeURIComponent(selectedDistrict)
+          url += `?district=${encodedDistrict}`
+        }
+
+        const res = await fetch(url)
+        if (!res.ok) throw new Error(`HTTP error: ${res.status}`)
+        const data = await res.json()
+        setChartData(data);
+
+      } catch (err) {
+        console.error(err)
+        setError("Не удалось загрузить данные")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [selectedDistrict])
+
   return (
     <div className="flex-1 overflow-y-auto bg-gray-50">
 
@@ -136,18 +170,21 @@ export default function AnalyticPage() {
 
         {/* Seismic Resistance Levels */}
         <BuildingRiskCategoryHisto
-            setTotalBuildingsRisk={setTotalBuildingsRisk}
-            setA1Count={setA1Count}
+          setTotalBuildingsRisk={setTotalBuildingsRisk}
+          setA1Count={setA1Count}
         />
 
         {/* Social Objects by IRI Index */}
         <SocialObjectsIRIHisto
-          infraSummary={infraSummary}
+          chartData={chartData}
+          selectedDistrict={selectedDistrict}
+          loading={loading}
+          error={error}
         />
 
         {/* Population by IRI Index */}
         <PopulationIRIHisto
-          infraSummary={infraSummary}
+          chartData={chartData}
         />
 
         {/* District Readiness Table */}

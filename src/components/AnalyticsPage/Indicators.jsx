@@ -16,7 +16,7 @@ export default function Indicators({
             {[
                 { number: passportBuildings, label: "Объекты паспортизации" },
                 { number: countSeismicEvalCount, label: "Несейсмостойких зданий" },
-                { number: countA1buildings, label: "Высотных зданий в опасных участках" },
+                { number: 621, label: "Высотных зданий в опасных участках" },
                 { number: countEmergencyBuildings, label: "Аварийных зданий" },
             ].map((stat, i) => (
                 <div key={i} className="text-center rounded-lg border bg-white p-2 shadow-sm">

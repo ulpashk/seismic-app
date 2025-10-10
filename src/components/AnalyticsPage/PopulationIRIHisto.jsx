@@ -12,31 +12,35 @@ import {
   LabelList,
 } from "recharts"
 
-export default function PopulationIRIHisto({ infraSummary }) {
-  const categories = [
-    { key: "Критическая (<0.40)", color: "#ef4444" },
-    { key: "Низкая (0.40–0.59)", color: "#f97316" },
-    { key: "Умеренная (0.60–0.79)", color: "#eab308" },
-    { key: "Высокая готовность (0.80–1.00)", color: "#22c55e" },
-  ]
+export default function PopulationIRIHisto({ chartData }) {
+  // Маппинг категорий IRI → Цвета
+  const iriColors = {
+    "A: высокая готовность": "#22c55e", // зелёный
+    "B: средняя готовность": "#eab308", // жёлтый
+    "C: низкая готовность": "#f97316", // оранжевый
+    "D: критическая готовность": "#ef4444", // красный (если появится)
+  }
 
-  const chartData = categories.map(({ key, color }) => ({
-    iri: key,
-    gri_pop_sum: infraSummary?.[key]?.gri_pop_sum || 0,
-    color,
-  }))
+  // Преобразуем данные в нужный формат для Recharts
+  const formattedData = chartData?.map((item) => ({
+    iri: item.IRI_cat,
+    gri_pop_sum: item.total_gri_pop_sum,
+    // color: iriColors[item.IRI_cat] || "#9ca3af", // серый по умолчанию
+    color: "#2d6bd6ff", // серый по умолчанию
+  })) || []
 
   return (
     <div className="rounded-lg border bg-white shadow-sm">
       <div className="flex items-center justify-between border-b p-4">
-        <h2 className="text-base font-medium">Население по зонам индексах IRI</h2>
+        <h2 className="text-base font-medium">Население по индексам готовности IRI</h2>
         <Info className="h-4 w-4 text-gray-400" />
       </div>
+
       <div className="p-6">
-        {chartData.some(d => d.gri_pop_sum > 0) ? (
+        {formattedData.some((d) => d.gri_pop_sum > 0) ? (
           <ResponsiveContainer width="100%" height={350}>
             <BarChart
-              data={chartData}
+              data={formattedData}
               margin={{ top: 20, right: 20, left: 0, bottom: 20 }}
             >
               <XAxis
@@ -54,9 +58,9 @@ export default function PopulationIRIHisto({ infraSummary }) {
                   dataKey="gri_pop_sum"
                   position="top"
                   formatter={(value) => value.toLocaleString()}
-                  style={{ fill: "#838383ff", fontSize: 12, fontWeight: "bold" }}
+                  style={{ fill: "#6b7280", fontSize: 12, fontWeight: "bold" }}
                 />
-                {chartData.map((entry, index) => (
+                {formattedData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Bar>
