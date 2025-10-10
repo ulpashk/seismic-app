@@ -140,6 +140,9 @@ export default function MapGeoRisk({mode, setMode, selectedDistrict, riskLevels,
             ],
             "fill-opacity": 0.5,
             },
+            layout: {
+                "visibility": "visible"
+            }
         });
 
         // --- LINES ---
@@ -157,6 +160,9 @@ export default function MapGeoRisk({mode, setMode, selectedDistrict, riskLevels,
             ],
             "line-width": 2,
             },
+            layout: {
+                "visibility": "visible"
+            }
         });
 
         // --- POINTS ---
@@ -176,6 +182,9 @@ export default function MapGeoRisk({mode, setMode, selectedDistrict, riskLevels,
             "circle-stroke-width": 1.5,
             "circle-stroke-color": "#ffffff",
             },
+            layout: {
+                "visibility": "visible"
+            }
         });
         };
 
@@ -239,9 +248,37 @@ export default function MapGeoRisk({mode, setMode, selectedDistrict, riskLevels,
     if (!mapRef.current || !geoStructData) return;
     const map = mapRef.current;
 
+    console.log("GeoStruct data loaded:", geoStructData);
+
+    // Wait for map to be fully loaded
+    if (!map.loaded()) {
+      console.log("Map not loaded yet, waiting...");
+      map.once("load", () => {
+        const src = map.getSource("geoStruct");
+        if (src) {
+          console.log("Setting geoStruct data (after load), features count:", geoStructData?.features?.length);
+          src.setData(geoStructData);
+        }
+      });
+      return;
+    }
+
     const src = map.getSource("geoStruct");
     if (src) {
+      console.log("Setting geoStruct data, features count:", geoStructData?.features?.length);
       src.setData(geoStructData);
+    } else {
+      console.warn("geoStruct source not found, retrying after slight delay...");
+      // Retry after a short delay in case layers are still being added
+      setTimeout(() => {
+        const retrySource = map.getSource("geoStruct");
+        if (retrySource) {
+          console.log("Retry successful, setting data");
+          retrySource.setData(geoStructData);
+        } else {
+          console.error("geoStruct source still not found after retry");
+        }
+      }, 500);
     }
   }, [geoStructData]);
   
@@ -250,28 +287,30 @@ export default function MapGeoRisk({mode, setMode, selectedDistrict, riskLevels,
     if (!mapRef.current) return;
     const map = mapRef.current;
 
+    console.log("Infrastructure categories changed:", infrastructureCategories);
+
     if (map.getLayer("geoStruct-point")) {
-      map.setLayoutProperty(
-        "geoStruct-point",
-        "visibility",
-        infrastructureCategories.landslides ? "visible" : "none"
-      );
+      const visibility = infrastructureCategories.landslides ? "visible" : "none";
+      console.log("Setting geoStruct-point visibility:", visibility);
+      map.setLayoutProperty("geoStruct-point", "visibility", visibility);
+    } else {
+      console.warn("geoStruct-point layer not found");
     }
 
     if (map.getLayer("geoStruct-fill")) {
-      map.setLayoutProperty(
-        "geoStruct-fill",
-        "visibility",
-        infrastructureCategories.tectonicFaults ? "visible" : "none"
-      );
+      const visibility = infrastructureCategories.tectonicFaults ? "visible" : "none";
+      console.log("Setting geoStruct-fill visibility:", visibility);
+      map.setLayoutProperty("geoStruct-fill", "visibility", visibility);
+    } else {
+      console.warn("geoStruct-fill layer not found");
     }
 
     if (map.getLayer("geoStruct-line")) {
-      map.setLayoutProperty(
-        "geoStruct-line",
-        "visibility",
-        infrastructureCategories.mudflowPaths ? "visible" : "none"
-      );
+      const visibility = infrastructureCategories.mudflowPaths ? "visible" : "none";
+      console.log("Setting geoStruct-line visibility:", visibility);
+      map.setLayoutProperty("geoStruct-line", "visibility", visibility);
+    } else {
+      console.warn("geoStruct-line layer not found");
     }
 
     if (map._geoStructMarkers) {
@@ -280,7 +319,7 @@ export default function MapGeoRisk({mode, setMode, selectedDistrict, riskLevels,
         el.style.display = infrastructureCategories.landslides ? "block" : "none";
       });
     }
-    
+
   }, [infrastructureCategories]);
 
   useEffect(() => {
@@ -318,7 +357,7 @@ export default function MapGeoRisk({mode, setMode, selectedDistrict, riskLevels,
       <div className="absolute top-20 left-1/2 -translate-x-1/2 z-10 flex items-center">
         <div className="flex space-x-2">
           {[
-            { key: "grid", label: "Гео-риски" },
+            { key: "grid", label: "Гео-рискиs" },
             // { key: "population", label: "Плотность населения" },
           ].map(({ key, label }) => (
             <div key={key}>
