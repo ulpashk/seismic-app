@@ -1,5 +1,4 @@
 "use client"
-
 import { useEffect, useState } from "react"
 import { Info } from "lucide-react"
 import {
@@ -15,6 +14,22 @@ import {
 
 export default function PopulationCriticalHisto() {
   const [districtData, setDistrictData] = useState([])
+  
+  // Color palette for different bars
+  const colors = [
+    "#ef4444", // red
+    "#f97316", // orange
+    "#f59e0b", // amber
+    "#84cc16", // lime
+    "#22c55e", // green
+    "#14b8a6", // teal
+    "#06b6d4", // cyan
+    "#3b82f6", // blue
+    "#6366f1", // indigo
+    "#8b5cf6", // violet
+    "#a855f7", // purple
+    "#ec4899", // pink
+  ]
 
   useEffect(() => {
     async function fetchData() {
@@ -23,28 +38,26 @@ export default function PopulationCriticalHisto() {
           "https://admin.smartalmaty.kz/api/v1/address/postgis/geo-risk/sum-by-district/"
         )
         const json = await res.json()
-
-        // Filter out "БКАД За пределами города"
-        let filtered = json.filter(d => d.district !== "БКАД За пределами города")
-
-        // Ensure Алатауский район exists
-        if (!filtered.some(d => d.district === "Алмалинский район")) {
-          filtered.push({ district: "Алмалинский район", sum: 0 })
-        }
-
+        
+        // Filter out "БКАД За пределами города" and districts with sum = 0
+        const filtered = json.filter(
+          d => d.district !== "БКАД За пределами города" && d.sum > 0
+        )
+        
         setDistrictData(filtered)
       } catch (error) {
         console.error("Failed to fetch data:", error)
       }
     }
+    
     fetchData()
   }, [])
 
-  // Prepare chart data: color red if sum > 0, gray if sum = 0
-  const chartData = districtData.map(d => ({
+  // Prepare chart data with rotating colors
+  const chartData = districtData.map((d, index) => ({
     district: d.district,
     sum: d.sum,
-    color: d.sum > 0 ? "#ef4444" : "#d1d5db",
+    color: colors[index % colors.length],
   }))
 
   return (
@@ -71,13 +84,20 @@ export default function PopulationCriticalHisto() {
                 tick={{ fontSize: 10 }}
               />
               <YAxis tick={false} axisLine={false} />
-              <Tooltip formatter={value => value.toLocaleString()} />
+              <Tooltip 
+                formatter={(value) => value.toLocaleString()} 
+                contentStyle={{ 
+                  backgroundColor: 'white', 
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '6px'
+                }}
+              />
               <Bar dataKey="sum" name="Население (чел.)" minPointSize={5}>
                 <LabelList
                   dataKey="sum"
                   position="top"
-                  formatter={value => value.toLocaleString()}
-                  style={{ fill: "#838383ff", fontSize: 12, fontWeight: "bold" }}
+                  formatter={(value) => value.toLocaleString()}
+                  style={{ fill: "#838383", fontSize: 12, fontWeight: "bold" }}
                 />
                 {chartData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />

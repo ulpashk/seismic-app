@@ -357,7 +357,7 @@ export default function MapGeoRisk({mode, setMode, selectedDistrict, riskLevels,
       <div className="absolute top-20 left-1/2 -translate-x-1/2 z-10 flex items-center">
         <div className="flex space-x-2">
           {[
-            { key: "grid", label: "Гео-рискиs" },
+            { key: "grid", label: "Гео-риски" },
             // { key: "population", label: "Плотность населения" },
           ].map(({ key, label }) => (
             <div key={key}>
