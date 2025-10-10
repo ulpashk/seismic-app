@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState, useCallback } from "react"
+import { useEffect, useRef, useState } from "react"
 import { MapboxOverlay } from "@deck.gl/mapbox";
 import SocialIconLayer from "./map-icons/social-icons"
 import RepgisIconLayer from "./map-icons/repgis-icons"
@@ -79,7 +79,7 @@ const socialLegend = [
 const enginLegend = [
   { label: "Канализация", key: "Канализация", color: "#0ea5e9", icon: "/icons/sewer.png" },
   { label: "Электроснабжение", key: "Электроснабжение", color: "#f97316", icon: "/icons/electricity.png" },
-  { label: "ИКТ инфраструктура города", key: "ИКТ инфраструктура города", color: "#22c55e", icon: "/icons/ict.png" },
+  { label: "ИКТ инфраструктура города", key: "ИКТ инфраструктура города", color: "#a855f7", icon: "/icons/ict.png" },
   { label: "Теплоснабжение", key: "Теплоснабжение", color: "#ef4444", icon: "/icons/heat.png" },
   { label: "Газоснабжение", key: "Газоснабжение", color: "#eab308", icon: "/icons/gas.png" },
 ];
@@ -124,7 +124,7 @@ export default function InfraMap({
   const overlayRef = useRef(null);
 
   // 🔹 Build district query string
-  const buildQuery = useCallback(() => {
+  const buildQuery = () => {
     const params = [];
     if (
       selectedDistrict.length > 0 &&
@@ -138,7 +138,7 @@ export default function InfraMap({
       params.push(`district=${encodeURIComponent(districts)}`);
     }
     return params.length ? `?${params.join("&")}` : "";
-  }, [selectedDistrict]);
+  };
 
 // mapp 
   useEffect(() => {
@@ -171,82 +171,79 @@ export default function InfraMap({
   //   return `${base}&cat_name=${selected.join(",")}`
   // }
 
-useEffect(() => {
-  if (!overlayRef.current || !map.current) return;
+  // useEffect(() => {
+  //   if (!overlayRef.current || !map.current) return;
 
-  const updateRepgisLayer = async () => {
-    if (!window.cachedData?.repgis_full) {
-      const res = await fetch(urls.repgis);
-      const data = await res.json();
-      window.cachedData = window.cachedData || {};
-      window.cachedData.repgis_full = data.features
-        ? data
-        : {
-            type: "FeatureCollection",
-            features: (data.results || []).map(item => ({
-              type: "Feature",
-              geometry: item.geometry,
-              properties: item,
-            })),
-          };
-    }
+  //   const updateRepgisLayer = async () => {
+  //     if (!window.cachedData?.repgis_full) {
+  //       const res = await fetch(urls.repgis);
+  //       const data = await res.json();
+  //       window.cachedData = window.cachedData || {};
+  //       window.cachedData.repgis_full = data.features
+  //         ? data
+  //         : {
+  //             type: "FeatureCollection",
+  //             features: (data.results || []).map(item => ({
+  //               type: "Feature",
+  //               geometry: item.geometry,
+  //               properties: item,
+  //             })),
+  //           };
+  //     }
 
-    const fullGeojson = window.cachedData.repgis_full;
+  //     const fullGeojson = window.cachedData.repgis_full;
 
-    const selectedCategories = Object.entries(enginNodes)
-      .filter(([, enabled]) => enabled)
-      .map(([name]) => name);
+  //     const selectedCategories = Object.entries(enginNodes)
+  //       .filter(([, enabled]) => enabled)
+  //       .map(([name]) => name);
 
-    // Filter main polygons/lines
-    const filteredFeatures = fullGeojson.features.filter(f =>
-      selectedCategories.includes(f.properties.cat_name)
-    );
+  //     // Filter main polygons/lines
+  //     const filteredFeatures = fullGeojson.features.filter(f =>
+  //       selectedCategories.includes(f.properties.cat_name)
+  //     );
 
-    // ⬇️ Add marker_geojson points from polygons
-    const markerPoints = filteredFeatures
-  .filter(f => f.properties.marker_geojson)
-  .map(f => {
-    let markerGeom = f.properties.marker_geojson;
+  //     // ⬇️ Add marker_geojson points from polygons
+  //     const markerPoints = filteredFeatures
+  //   .filter(f => f.properties.marker_geojson)
+  //   .map(f => {
+  //     let markerGeom = f.properties.marker_geojson;
 
-    // 🧠 Handle both JSON string or already-parsed object
-    if (typeof markerGeom === "string") {
-      try {
-        markerGeom = JSON.parse(markerGeom);
-      } catch (e) {
-        console.warn("Invalid marker_geojson for feature:", f.properties.id);
-        return null;
-      }
-    }
+  //     // 🧠 Handle both JSON string or already-parsed object
+  //     if (typeof markerGeom === "string") {
+  //       try {
+  //         markerGeom = JSON.parse(markerGeom);
+  //       } catch (e) {
+  //         console.warn("Invalid marker_geojson for feature:", f.properties.id);
+  //         return null;
+  //       }
+  //     }
 
-    // Validate geometry type
-    if (!markerGeom || markerGeom.type !== "Point") return null;
+  //     // Validate geometry type
+  //     if (!markerGeom || markerGeom.type !== "Point") return null;
 
-    return {
-      type: "Feature",
-      geometry: markerGeom,
-      properties: f.properties,
-    };
-  })
-  .filter(Boolean);
+  //     return {
+  //       type: "Feature",
+  //       geometry: markerGeom,
+  //       properties: f.properties,
+  //     };
+  //   })
+  //   .filter(Boolean);
 
-    // Merge all into one dataset
-    const mergedFeatures = [...filteredFeatures, ...markerPoints];
+  //     // Merge all into one dataset
+  //     const mergedFeatures = [...filteredFeatures, ...markerPoints];
 
-    const repgisLayer = new RepgisIconLayer({
-      id: "repgis-layer",
-      data: mergedFeatures,
-    });
+  //     const repgisLayer = new RepgisIconLayer({
+  //       id: "repgis-layer",
+  //       data: mergedFeatures,
+  //     });
 
-    overlayRef.current.setProps({ layers: [repgisLayer] });
-  };
+  //     overlayRef.current.setProps({ layers: [repgisLayer] });
+  //   };
 
-  updateRepgisLayer();
-}, [enginNodes]);
+  //   updateRepgisLayer();
+  // }, [enginNodes]);
 
-
-
-
-  const loadBuildingLayer = useCallback(() => {
+  const loadBuildingLayer = () => {
     if (!map.current) return
 
     const config = layerConfigs.building
@@ -287,32 +284,51 @@ useEffect(() => {
       })
     }
     else {
-  map.current.setLayoutProperty("building-fill", "visibility", "visible");
-}
-
-     // ✅ Build filters
-    let filters = ["all"];
-
-    // 🔹 District filter
-    if (selectedDistrict.length > 0 && !selectedDistrict.includes("Все районы")) {
-      filters.push([
-        "in",
-        ["get", "district"],
-        ["literal", selectedDistrict],
-      ]);
+      map.current.setLayoutProperty("building-fill", "visibility", "visible");
     }
 
-    // 🔹 Building category filters
-    // const catFilters = [];
-    if (buildingCategories.highrise) {
-      filters.push(["==", ["get", "is_highrise_in_poly"], "True"]);
+    //  // ✅ Build filters
+    // let filters = ["all"];
+
+    // // 🔹 District filter
+    // if (selectedDistrict.length > 0 && !selectedDistrict.includes("Все районы")) {
+    //   filters.push([
+    //     "in",
+    //     ["get", "district"],
+    //     ["literal", selectedDistrict],
+    //   ]);
+    // }
+
+    // // 🔹 Building category filters
+    // // const catFilters = [];
+    // if (buildingCategories.highrise) {
+    //   filters.push(["==", ["get", "is_highrise_in_poly"], "True"]);
+    // }
+
+    // // ✅ Apply combined filter
+    // map.current.setFilter("building-fill", filters);
+  }
+
+  useEffect(() => {
+    if (!map.current) return;
+
+    // 🔹 Hide layer if none selected
+    if (!buildingCategories.seismicSafety && !buildingCategories.emergency && !buildingCategories.seismic) {
+      if (map.current.getLayer("seismic-safety-fill")) {
+        map.current.setLayoutProperty("seismic-safety-fill", "visibility", "none");
+      }
+      return;
     }
 
-    // ✅ Apply combined filter
-    map.current.setFilter("building-fill", filters);
-  }, [selectedDistrict, buildingCategories])
+    // 🔹 Otherwise, load layer and show
+    loadSeismicSafetyLayer().then(() => {
+      if (map.current.getLayer("seismic-safety-fill")) {
+        map.current.setLayoutProperty("seismic-safety-fill", "visibility", "visible");
+      }
+    });
+  }, [selectedDistrict, buildingCategories]);
 
-  const loadSeismicSafetyLayer = useCallback(async () => {
+  const loadSeismicSafetyLayer = async () => {
     if (!map.current) return;
 
     let url = urls.seismicSafety;
@@ -414,26 +430,7 @@ useEffect(() => {
     if (!bounds.isEmpty()) {
       map.current.fitBounds(bounds, { padding: 50 });
     }
-  }, [buildingCategories, buildQuery]);
-
-  useEffect(() => {
-    if (!map.current) return;
-
-    // 🔹 Hide layer if none selected
-    if (!buildingCategories.seismicSafety && !buildingCategories.emergency && !buildingCategories.seismic) {
-      if (map.current.getLayer("seismic-safety-fill")) {
-        map.current.setLayoutProperty("seismic-safety-fill", "visibility", "none");
-      }
-      return;
-    }
-
-    // 🔹 Otherwise, load layer and show
-    loadSeismicSafetyLayer().then(() => {
-      if (map.current.getLayer("seismic-safety-fill")) {
-        map.current.setLayoutProperty("seismic-safety-fill", "visibility", "visible");
-      }
-    });
-  }, [selectedDistrict, buildingCategories, loadSeismicSafetyLayer]);
+  };
 
   useEffect(() => {
     if (!maplibreLoaded || map.current) return
@@ -448,8 +445,6 @@ useEffect(() => {
       pitch: 45,
       antialias: true 
     })
-
-    map.current.addControl(new maplibregl.NavigationControl(), "top-right")
 
     // loadLayer("building")
     map.current.on("load", () => {
@@ -502,7 +497,7 @@ useEffect(() => {
       }
     }
   )
-  }, [maplibreLoaded, loadBuildingLayer])
+  }, [maplibreLoaded])
 
   useEffect(() => {
     if (!map.current || !map.current.getLayer("building-fill")) return;
@@ -511,16 +506,22 @@ useEffect(() => {
 
     // 🔹 District filter
     if (selectedDistrict.length > 0 && !selectedDistrict.includes("Все районы")) {
+      const districtFilterValues = selectedDistrict
+        .filter(d => d !== "Все районы")
+        .map(d => `${d} район`);
+
       filters.push([
         "in",
         ["get", "district"],
-        ["literal", selectedDistrict],
+        // ["literal", selectedDistrict],
+        // ["literal", selectedDistrict.filter(d => d !== "Все районы")],
+        ["literal", districtFilterValues]
       ]);
     }
 
     // 🔹 Highrise filter
     if (buildingCategories.highrise) {
-      filters.push(["==", ["get", "is_highrise_in_poly"], "True"]);
+      filters.push(["==", ["get", "is_highrise_in_ploadLayeroly"], "True"]);
     }
 
     // ✅ Apply filter dynamically
@@ -688,45 +689,151 @@ useEffect(() => {
     }
   }
 
-useEffect(() => {
-  if (!overlayRef.current || !map.current) return;
+  // useEffect(() => {
+  //   if (!overlayRef.current || !map.current) return;
 
-  const fetchData = async () => {
-    if (window.cachedData?.social) return window.cachedData.social;
-    const res = await fetch(urls.social);
-    const data = await res.json();
-    const geojson = data.features
-      ? data
-      : {
-          type: "FeatureCollection",
-          features: (data.results || []).map((item) => ({
-            type: "Feature",
-            geometry: item.geometry,
-            properties: item,
-          })),
-        };
-    window.cachedData = window.cachedData || {};
-    window.cachedData.social = geojson;
-    return geojson;
-  };
+  //   const fetchData = async () => {
+  //     if (window.cachedData?.social) return window.cachedData.social;
+  //     const res = await fetch(urls.social);
+  //     const data = await res.json();
+  //     const geojson = data.features
+  //       ? data
+  //       : {
+  //           type: "FeatureCollection",
+  //           features: (data.results || []).map((item) => ({
+  //             type: "Feature",
+  //             geometry: item.geometry,
+  //             properties: item,
+  //           })),
+  //         };
+  //     window.cachedData = window.cachedData || {};
+  //     window.cachedData.social = geojson;
+  //     return geojson;
+  //   };
 
-  fetchData().then((geojson) => {
-    const selected = Object.entries(socialCategories)
-      .filter(([_, enabled]) => enabled)
-      .map(([key]) => key);
+  //   fetchData().then((geojson) => {
+  //     const selected = Object.entries(socialCategories)
+  //       .filter(([_, enabled]) => enabled)
+  //       .map(([key]) => key);
 
-    const filtered = selected.length
-      ? geojson.features.filter((f) => selected.includes(f.properties.category))
-      : [];
+  //     const filtered = selected.length
+  //       ? geojson.features.filter((f) => selected.includes(f.properties.category))
+  //       : [];
 
-    const socialLayer = new SocialIconLayer({
-      id: "social-layer",
-      data: filtered,
-    });
+  //     const socialLayer = new SocialIconLayer({
+  //       id: "social-layer",
+  //       data: filtered,
+  //     });
 
-    overlayRef.current.setProps({ layers: [socialLayer] });
-  });
-}, [socialCategories]);
+  //     overlayRef.current.setProps({ layers: [socialLayer] });
+  //   });
+  // }, [socialCategories]);
+
+  // ADD THIS NEW UNIFIED USEEFFECT
+  useEffect(() => {
+    if (!overlayRef.current || !map.current) return;
+
+    const updateLayers = async () => {
+      // 1. Fetch and prepare Social Data (This part is correct)
+      const socialData = await (async () => {
+        if (!window.cachedData?.social) {
+          const res = await fetch(urls.social);
+          const data = await res.json();
+          window.cachedData = window.cachedData || {};
+          window.cachedData.social = data.features ? data : {
+            type: "FeatureCollection",
+            features: (data.results || []).map(item => ({
+              type: "Feature",
+              geometry: item.geometry,
+              properties: item,
+            })),
+          };
+        }
+        return window.cachedData.social;
+      })();
+
+      const selectedSocial = Object.entries(socialCategories)
+        .filter(([, enabled]) => enabled)
+        .map(([key]) => key);
+
+      const filteredSocialFeatures = selectedSocial.length
+        ? socialData.features.filter((f) => selectedSocial.includes(f.properties.category))
+        : [];
+
+      const socialLayer = new SocialIconLayer({
+        id: "social-layer",
+        data: filteredSocialFeatures,
+      });
+
+      // 2. Fetch and prepare RepGIS Data (This section is now corrected)
+      const repgisData = await (async () => {
+        if (!window.cachedData?.repgis_full) {
+          const res = await fetch(urls.repgis);
+          const data = await res.json();
+          window.cachedData = window.cachedData || {};
+          window.cachedData.repgis_full = data.features ? data : {
+            type: "FeatureCollection",
+            features: (data.results || []).map(item => ({
+              type: "Feature",
+              geometry: item.geometry,
+              properties: item,
+            })),
+          };
+        }
+        return window.cachedData.repgis_full;
+      })();
+
+      const selectedRepgis = Object.entries(enginNodes)
+        .filter(([, enabled]) => enabled)
+        .map(([name]) => name);
+        
+      let mergedRepgisFeatures = [];
+
+      if (selectedRepgis.length > 0) {
+          const filteredMainFeatures = repgisData.features.filter(f => 
+              selectedRepgis.includes(f.properties.cat_name)
+          );
+
+          // <<< START: RESTORED MARKER_GEOJSON LOGIC
+          const markerPoints = filteredMainFeatures
+              .filter(f => f.properties.marker_geojson)
+              .map(f => {
+                  let markerGeom = f.properties.marker_geojson;
+                  if (typeof markerGeom === "string") {
+                      try {
+                          markerGeom = JSON.parse(markerGeom);
+                      } catch (e) {
+                          console.warn("Invalid marker_geojson for feature:", f.properties.id);
+                          return null;
+                      }
+                  }
+                  if (!markerGeom || markerGeom.type !== "Point") return null;
+                  return {
+                      type: "Feature",
+                      geometry: markerGeom,
+                      properties: f.properties,
+                  };
+              })
+              .filter(Boolean); // Remove any nulls
+          // <<< END: RESTORED MARKER_GEOJSON LOGIC
+          
+          // Combine main polygons/lines with their extracted marker points
+          mergedRepgisFeatures = [...filteredMainFeatures, ...markerPoints];
+      }
+
+
+      const repgisLayer = new RepgisIconLayer({
+        id: "repgis-layer",
+        data: mergedRepgisFeatures, // Use the fully processed data
+      });
+      
+      // 3. Set both layers at the same time
+      overlayRef.current.setProps({ layers: [socialLayer, repgisLayer] });
+    };
+
+    updateLayers();
+    
+  }, [socialCategories, enginNodes]);
 
 const handleLayerSwitch = (layerKey) => {
   setActiveLayer(layerKey);
@@ -832,43 +939,49 @@ const handleLayerSwitch = (layerKey) => {
         </div>
       )}
 
-      {Object.values(enginNodes).some(Boolean) && (
+      {(Object.values(enginNodes).some(Boolean) || Object.values(socialCategories).some(Boolean)) && (
         <div className="absolute bottom-8 z-40 left-[350px] p-3 bg-gray-50 rounded-md border shadow-md">
-          <ul className="space-y-1">
-            {enginLegend
-              .filter((item) => enginNodes[item.key])
-              .map((item) => (
-                <li key={item.label} className="flex items-center space-x-2">
-                  <div
-                    className="flex items-center justify-center rounded-full border"
-                    style={{
-                      borderColor: item.color,
-                      backgroundColor: "white",
-                      width: "24px",
-                      height: "24px",
-                    }}
-                  >
-                    <img
-                      src={item.icon}
-                      alt={item.label}
-                      className="w-4 h-4 object-contain"
-                    />
-                  </div>
-                  <span className="text-xs text-gray-700">{item.label}</span>
-                </li>
-              ))}
-          </ul>
-        </div>
-      )}
+          
+          {/* Engineering (RepGIS) Legend Section */}
+          {Object.values(enginNodes).some(Boolean) && (
+            <ul className="space-y-1">
+              {enginLegend
+                .filter((item) => enginNodes[item.key])
+                .map((item) => (
+                  <li key={item.label} className="flex items-center space-x-2">
+                    <div
+                      className="flex items-center justify-center rounded-full border"
+                      style={{
+                        borderColor: item.color,
+                        backgroundColor: "white",
+                        width: "24px",
+                        height: "24px",
+                      }}
+                    >
+                      <img
+                        src={item.icon}
+                        alt={item.label}
+                        className="w-4 h-4 object-contain"
+                      />
+                    </div>
+                    <span className="text-xs text-gray-700">{item.label}</span>
+                  </li>
+                ))}
+            </ul>
+          )}
 
-        {Object.values(socialCategories).some(Boolean) && (
-          <div className="absolute bottom-8 z-40 left-[350px] p-3 bg-gray-50 rounded-md border shadow-md">
+          {/* Divider: Shows only if both legends are active */}
+          {Object.values(enginNodes).some(Boolean) && Object.values(socialCategories).some(Boolean) && (
+            <hr className="my-2 border-gray-200" />
+          )}
+
+          {/* Social Legend Section */}
+          {Object.values(socialCategories).some(Boolean) && (
             <ul className="space-y-1">
               {socialLegend
                 .filter((item) => socialCategories[item.key])
                 .map((item) => (
                   <li key={item.label} className="flex items-center space-x-2">
-                    {/* white circle background + border to match map style */}
                     <div
                       className="flex items-center justify-center rounded-full border"
                       style={{
@@ -888,8 +1001,9 @@ const handleLayerSwitch = (layerKey) => {
                   </li>
                 ))}
             </ul>
-          </div>
-        )}
+          )}
+        </div>
+      )}
     </div>
   )
 }

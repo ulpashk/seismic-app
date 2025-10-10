@@ -4,34 +4,18 @@ import { IconLayer, GeoJsonLayer } from "@deck.gl/layers";
 export default class RepgisIconLayer extends CompositeLayer {
   renderLayers() {
     const { data = [] } = this.props;
-
     const points = data.filter(d => d.geometry?.type === "Point");
     const polygons = data.filter(
       d => ["Polygon", "MultiPolygon"].includes(d.geometry?.type)
     );
-    const lines = data
-      .filter(d => ["LineString", "MultiLineString"].includes(d.geometry?.type))
-      .map(d => {
-        let coords = d.geometry.coordinates;
-
-        if (d.geometry.type === "LineString" && Array.isArray(coords[0][0])) {
-          coords = coords[0];
-        }
-        if (d.geometry.type === "MultiLineString" && Array.isArray(coords[0][0][0])) {
-          coords = coords.map(line => line[0]);
-        }
-
-        return {
-          type: "Feature",
-          geometry: { type: d.geometry.type, coordinates: coords },
-          properties: d.properties || {},
-        };
-      });
-
+    const lines = data.filter(
+      d => ["LineString", "MultiLineString"].includes(d.geometry?.type)
+    );
+    
     // 🟤 Polygon layer
     const polygonLayer = new GeoJsonLayer({
       id: `${this.props.id}-polygons`,
-      data: { type: "FeatureCollection", features: polygons },
+      data: polygons, // <-- Pass the array of features directly
       filled: true,
       stroked: true,
       getFillColor: [199, 160, 127, 160],
@@ -43,14 +27,12 @@ export default class RepgisIconLayer extends CompositeLayer {
     // 🔵 Line layer
     const lineLayer = new GeoJsonLayer({
       id: `${this.props.id}-lines`,
-      data: { type: "FeatureCollection", features: lines },
+      data: lines, // <-- Pass the array of features directly
       stroked: true,
-      getLineColor: [234, 179, 8, 255],
-      getLineWidth: 2,
-      lineWidthScale: 2,
+      getLineColor: [234, 179, 8, 255], // Using a lighter sky blue color
+      getLineWidth: 3, // Slightly thicker for better visibility
       lineWidthUnits: "pixels",
       pickable: true,
-      parameters: { depthTest: false },
     });
 
     // 🟢 Marker background (white circle with colored border)
