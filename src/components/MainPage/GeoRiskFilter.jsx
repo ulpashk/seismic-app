@@ -34,15 +34,41 @@ export default function GeoRiskFilter({
     "Турксибский",
   ];
   
+  // Initialize districts
   useEffect(() => {
     if (!selectedDistrict || selectedDistrict.length === 0) {
       setSelectedDistrict(["Все районы"]);
     }
   }, [selectedDistrict, setSelectedDistrict]);
+
+  // ✅ Initialize risk levels to ALL CHECKED on first load
+  useEffect(() => {
+    // Only set if riskLevels is not already initialized
+    const hasAnyValue = Object.values(riskLevels).some(v => v === true || v === false);
+    if (!hasAnyValue || Object.keys(riskLevels).length === 0) {
+      setRiskLevels({
+        high: true,
+        medium: true,
+        low: true,
+      });
+    }
+  }, []);
+
+  // ✅ Initialize infrastructure categories to ALL CHECKED
+  useEffect(() => {
+    const hasAnyValue = Object.values(infrastructureCategories).some(v => v === true || v === false);
+    if (!hasAnyValue || Object.keys(infrastructureCategories).length === 0) {
+      setInfrastructureCategories({
+        landslides: true,
+        tectonicFaults: true,
+        mudflowPaths: true,
+      });
+    }
+  }, []);
   
-    const toggleSection = (section) => {
-      setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
-    };
+  const toggleSection = (section) => {
+    setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
+  };
   
   const handleRiskLevelChange = (level) => {
     setRiskLevels((prev) => ({
@@ -51,11 +77,31 @@ export default function GeoRiskFilter({
     }));
   };
 
+  // ✅ Added "Select All / Deselect All" for Risk Levels
+  const handleRiskSelectAll = () => {
+    const allChecked = Object.values(riskLevels).every(v => v);
+    setRiskLevels({
+      high: !allChecked,
+      medium: !allChecked,
+      low: !allChecked,
+    });
+  };
+
   const handleInfrastructureChange = (category) => { 
     setInfrastructureCategories((prev) => ({
       ...prev,
       [category]: !prev[category],
     }));
+  };
+
+  // ✅ Added "Select All / Deselect All" for Infrastructure
+  const handleInfrastructureSelectAll = () => {
+    const allChecked = Object.values(infrastructureCategories).every(v => v);
+    setInfrastructureCategories({
+      landslides: !allChecked,
+      tectonicFaults: !allChecked,
+      mudflowPaths: !allChecked,
+    });
   };
 
   const handleCityChange = (city) => {
@@ -70,11 +116,16 @@ export default function GeoRiskFilter({
       });
     }
   };
+
+  // Calculate counts for display
+  const riskCheckedCount = Object.values(riskLevels).filter(Boolean).length;
+  const infraCheckedCount = Object.values(infrastructureCategories).filter(Boolean).length;
+
   return (
     <>
       <div className="flex flex-col max-h-[90vh] w-80 bg-white/95 backdrop-blur-sm rounded-xl border shadow-lg overflow-hidden">
-        {/* 🔹 Заголовок + кнопка-иконка */}
-        <div className="flex justify-between items-center px-4 pt-2 pb-2 border-b font-semibold text-gray-900 sticky top-0 bg-white/90 backdrop-blur-sm z-10 border-b-0">
+        {/* 🔹 Header + Collapse Button */}
+        <div className="flex justify-between items-center px-4 pt-2 pb-2 border-b font-semibold text-gray-900 sticky top-0 bg-white/90 backdrop-blur-sm z-10">
           <h3>Фильтры</h3>
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
@@ -89,7 +140,7 @@ export default function GeoRiskFilter({
           </button>
         </div>
 
-        {/* 🔹 Селектор районов (всегда видим) */}
+        {/* 🔹 District Selector (Always Visible) */}
         <div className="p-4 border-b">
           <div className="relative">
             <div
@@ -141,51 +192,59 @@ export default function GeoRiskFilter({
           </div>
         </div>
 
-        {/* 🔹 Скрываемая часть (с анимацией) */}
+        {/* 🔹 Collapsible Section (Animated) */}
         <div
-          className={`transition-all duration-500 ease-in-out ${
-            isCollapsed ? "max-h-0 opacity-0 overflow-hidden" : "max-h-[600px] opacity-100"
+          className={`transition-all duration-500 ease-in-out overflow-auto ${
+            isCollapsed ? "max-h-0 opacity-0" : "max-h-[600px] opacity-100"
           }`}
         >
-          {/* --- Уровень риска --- */}
+          {/* --- Risk Level Section --- */}
           <div className="p-4 border-b">
             <div
               className="flex justify-between items-center cursor-pointer"
               onClick={() => toggleSection("risk")}
             >
-              <h3 className="font-semibold text-gray-900 cursor-pointer text-sm">
-                Уровень риска:
+              <h3 className="font-semibold text-gray-900 text-sm">
+                Уровень риска: <span className="text-gray-500 font-normal">({riskCheckedCount}/3)</span>
               </h3>
               <span className="text-gray-500">
                 {openSections.risk ? "▾" : "▸"}
               </span>
             </div>
             {openSections.risk && (
-              <div className="space-y-2 text-sm mt-1">
+              <div className="space-y-2 text-sm mt-2">
+                {/* Select All Button */}
+                <button
+                  onClick={handleRiskSelectAll}
+                  className="w-full text-left text-xs text-blue-600 hover:text-blue-800 mb-1"
+                >
+                  {Object.values(riskLevels).every(v => v) ? "Снять все" : "Выбрать все"}
+                </button>
+                
                 <label className="flex items-center space-x-2 cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={riskLevels.high}
+                    checked={riskLevels.high ?? true}
                     onChange={() => handleRiskLevelChange("high")}
-                    className="form-checkbox"
+                    className="form-checkbox text-red-600"
                   />
                   <span>Высокий</span>
                 </label>
                 <label className="flex items-center space-x-2 cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={riskLevels.medium}
+                    checked={riskLevels.medium ?? true}
                     onChange={() => handleRiskLevelChange("medium")}
-                    className="form-checkbox"
+                    className="form-checkbox text-yellow-600"
                   />
                   <span>Средний</span>
                 </label>
                 <label className="flex items-center space-x-2 cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={riskLevels.low}
+                    checked={riskLevels.low ?? true}
                     onChange={() => handleRiskLevelChange("low")}
-                    className="form-checkbox"
+                    className="form-checkbox text-green-600"
                   />
                   <span>Низкий</span>
                 </label>
@@ -193,25 +252,33 @@ export default function GeoRiskFilter({
             )}
           </div>
 
-          {/* --- Геоструктуры --- */}
+          {/* --- Geostructure Section --- */}
           <div className="p-4 border-b">
             <div
               className="flex justify-between items-center cursor-pointer"
               onClick={() => toggleSection("geostructure")}
             >
-              <h3 className="font-semibold text-gray-900 cursor-pointer text-sm">
-                Категория геоструктур:
+              <h3 className="font-semibold text-gray-900 text-sm">
+                Категория геоструктур: <span className="text-gray-500 font-normal">({infraCheckedCount}/3)</span>
               </h3>
               <span className="text-gray-500">
                 {openSections.geostructure ? "▾" : "▸"}
               </span>
             </div>
             {openSections.geostructure && (
-              <div className="space-y-2 text-sm mt-1">
+              <div className="space-y-2 text-sm mt-2">
+                {/* Select All Button */}
+                <button
+                  onClick={handleInfrastructureSelectAll}
+                  className="w-full text-left text-xs text-blue-600 hover:text-blue-800 mb-1"
+                >
+                  {Object.values(infrastructureCategories).every(v => v) ? "Снять все" : "Выбрать все"}
+                </button>
+
                 <label className="flex items-center space-x-2 cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={infrastructureCategories.landslides}
+                    checked={infrastructureCategories.landslides ?? true}
                     onChange={() => handleInfrastructureChange("landslides")}
                     className="form-checkbox"
                   />
@@ -220,7 +287,7 @@ export default function GeoRiskFilter({
                 <label className="flex items-center space-x-2 cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={infrastructureCategories.tectonicFaults}
+                    checked={infrastructureCategories.tectonicFaults ?? true}
                     onChange={() =>
                       handleInfrastructureChange("tectonicFaults")
                     }
@@ -231,7 +298,7 @@ export default function GeoRiskFilter({
                 <label className="flex items-center space-x-2 cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={infrastructureCategories.mudflowPaths}
+                    checked={infrastructureCategories.mudflowPaths ?? true}
                     onChange={() => handleInfrastructureChange("mudflowPaths")}
                     className="form-checkbox"
                   />
@@ -243,7 +310,7 @@ export default function GeoRiskFilter({
         </div>
       </div>
 
-      {/* 🔹 Карточка "Население" */}
+      {/* 🔹 Population Card (Bottom Left) */}
       <div className="fixed bottom-8 left-4 lg:w-80 z-10 bg-white/95 backdrop-blur-sm rounded-xl border shadow-lg overflow-hidden mt-5">
         <div className="p-4">
           <h3 className="font-semibold text-gray-900 mb-3">Население:</h3>

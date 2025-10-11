@@ -15,7 +15,6 @@ export default function MapGeoRisk({
   const overlayRef = useRef(null);
 
   const [geoStructData, setGeoStructData] = useState(null);
-  const geoRiskCache = useRef({});
   const geoStructCache = useRef({});
   const riskMap = useRef({
     high: "высокий",
@@ -23,11 +22,32 @@ export default function MapGeoRisk({
     low: "низкий",
   });
 
-  // === Build Combined Filter Query ===
+  // === Build MapLibre Filter Expression for Risk Levels ===
+  const buildRiskFilter = useCallback(() => {
+    const selectedRisks = Object.entries(riskLevels)
+      .filter(([_, enabled]) => enabled)
+      .map(([key]) => riskMap.current[key]);
+
+    const noneChecked = selectedRisks.length === 0;
+    const allChecked = selectedRisks.length === 3;
+
+    if (noneChecked) {
+      // Hide everything by using impossible match
+      return ["==", ["get", "GRI_class"], "невозможное_значение"];
+    } else if (allChecked) {
+      // Show everything (no filter)
+      return null;
+    } else {
+      // Show only selected risk levels
+      return ["match", ["get", "GRI_class"], selectedRisks, true, false];
+    }
+  }, [riskLevels]);
+
+  // === Build Combined Filter Query (for API calls only) ===
   const buildQuery = useCallback(() => {
     const params = [];
 
-    // 🏙 District filter
+    // 🏙 District filter (only this is supported by backend)
     if (
       selectedDistrict.length > 0 &&
       !(selectedDistrict.length === 1 && selectedDistrict[0] === "Все районы")
@@ -39,21 +59,12 @@ export default function MapGeoRisk({
       params.push(`district=${encodeURIComponent(districts)}`);
     }
 
-    // ⚠️ Risk level filter
-    const selectedRisks = Object.entries(riskLevels)
-      .filter(([_, enabled]) => enabled)
-      .map(([key]) => riskMap.current[key]);
+    // NOTE: Backend doesn't support GRI_class filtering
+    // We filter client-side using MapLibre expressions instead
 
-    if (selectedRisks.length > 0) {
-      params.push(`GRI_class=${encodeURIComponent(selectedRisks.join(","))}`);
-    } else {
-      // ✅ Default: all risk levels if none selected
-      params.push(`GRI_class=${encodeURIComponent("высокий,средний,низкий")}`);
-    }
-
-    // ✅ Always return valid query string
-    return params.length ? `?${params.join("&")}` : "?page_size=5000";
-  }, [selectedDistrict, riskLevels]);
+    // ✅ Always return valid query string with page_size
+    return params.length ? `?${params.join("&")}&page_size=5000` : "?page_size=5000";
+  }, [selectedDistrict]);
 
   // === Fetch GeoStruct Data ===
   useEffect(() => {
@@ -66,12 +77,16 @@ export default function MapGeoRisk({
 
       try {
         const res = await fetch(
-          `https://admin.smartalmaty.kz/api/v1/address/clickhouse/geostructures/${query}&page_size=5000`
+          `https://admin.smartalmaty.kz/api/v1/address/clickhouse/geostructures/${query}`
         );
         const data = await res.json();
 
         if (!data?.features?.length) {
           console.warn("⚠️ No features found in geoStructData");
+          // Set empty collection instead of returning
+          const emptyCollection = { type: "FeatureCollection", features: [] };
+          geoStructCache.current[query] = emptyCollection;
+          setGeoStructData(emptyCollection);
           return;
         }
 
@@ -95,6 +110,9 @@ export default function MapGeoRisk({
         setGeoStructData(cleaned);
       } catch (err) {
         console.error("❌ Failed to fetch geoStructData", err);
+        const emptyCollection = { type: "FeatureCollection", features: [] };
+        geoStructCache.current[query] = emptyCollection;
+        setGeoStructData(emptyCollection);
       }
     };
 
@@ -132,7 +150,9 @@ export default function MapGeoRisk({
         maxzoom: 14,
       });
 
-      map.addLayer({
+      // Add layer with initial filter
+      const initialFilter = buildRiskFilter();
+      const layerConfig = {
         id: "geoRisk-fill",
         type: "fill",
         source: "geoRisk",
@@ -146,7 +166,14 @@ export default function MapGeoRisk({
           ],
           "fill-opacity": 0.35,
         },
-      });
+      };
+
+      // Only add filter if it's not null
+      if (initialFilter !== null) {
+        layerConfig.filter = initialFilter;
+      }
+
+      map.addLayer(layerConfig);
 
       // === GEOSTRUCT ===
       map.addSource("geoStruct", {
@@ -215,9 +242,15 @@ export default function MapGeoRisk({
         layout: { visibility: "visible" },
       });
     });
+
+    // Cleanup on unmount
+    return () => {
+      if (map) map.remove();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // === Update GeoRisk tiles safely ===
+  // === Update GeoRisk tiles when district changes ===
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -231,8 +264,11 @@ export default function MapGeoRisk({
         return;
       }
 
-      if (map.getSource("geoRisk")) {
+      // Remove existing layer and source if they exist
+      if (map.getLayer("geoRisk-fill")) {
         map.removeLayer("geoRisk-fill");
+      }
+      if (map.getSource("geoRisk")) {
         map.removeSource("geoRisk");
       }
 
@@ -248,29 +284,35 @@ export default function MapGeoRisk({
         ? "geoStruct-fault-fill"
         : undefined;
 
-      map.addLayer(
-        {
-          id: "geoRisk-fill",
-          type: "fill",
-          source: "geoRisk",
-          "source-layer": "geo_risk",
-          paint: {
-            "fill-color": [
-              "case",
-              ["has", "color_GRI"],
-              ["get", "color_GRI"],
-              "#33a456",
-            ],
-            "fill-opacity": 0.35,
-          },
+      // Apply current risk filter
+      const riskFilter = buildRiskFilter();
+      const layerConfig = {
+        id: "geoRisk-fill",
+        type: "fill",
+        source: "geoRisk",
+        "source-layer": "geo_risk",
+        paint: {
+          "fill-color": [
+            "case",
+            ["has", "color_GRI"],
+            ["get", "color_GRI"],
+            "#33a456",
+          ],
+          "fill-opacity": 0.35,
         },
-        beforeLayer
-      );
+      };
+
+      // Only add filter if it's not null
+      if (riskFilter !== null) {
+        layerConfig.filter = riskFilter;
+      }
+
+      map.addLayer(layerConfig, beforeLayer);
     };
 
     if (map.isStyleLoaded()) updateTiles();
     else map.once("styledata", updateTiles);
-  }, [selectedDistrict, riskLevels, buildQuery]);
+  }, [selectedDistrict, riskLevels, buildQuery, buildRiskFilter]);
 
   // === Update GeoStruct Data ===
   useEffect(() => {
@@ -279,7 +321,7 @@ export default function MapGeoRisk({
     if (src) src.setData(geoStructData);
   }, [geoStructData]);
 
-  // === Dynamic Category Filtering ===
+  // === Dynamic Category Filtering - FIXED ===
   useEffect(() => {
     if (!mapRef.current) return;
     const map = mapRef.current;
@@ -290,41 +332,95 @@ export default function MapGeoRisk({
       }
     };
 
+    // Check if any infrastructure categories are selected
+    const noneInfraChecked = Object.values(infrastructureCategories).every(v => !v);
+
+    // If NONE are checked, hide everything
+    if (noneInfraChecked) {
+      setVisibility("geoStruct-line", false);
+      setVisibility("geoStruct-fault-fill", false);
+      setVisibility("geoStruct-point", false);
+      return;
+    }
+
+    // Build active categories list
     const activeLineCategories = [];
     if (infrastructureCategories.mudflowPaths) activeLineCategories.push("сель");
     if (infrastructureCategories.landslides) activeLineCategories.push("оползни");
     if (infrastructureCategories.tectonicFaults) activeLineCategories.push("разломы");
 
-    const allCategories = ["сель", "оползни", "разломы"];
-    const finalCategories =
-      activeLineCategories.length > 0 ? activeLineCategories : allCategories;
-
-    if (map.getLayer("geoStruct-line")) {
+    // Update line layer
+    if (map.getLayer("geoStruct-line") && activeLineCategories.length > 0) {
       map.setFilter("geoStruct-line", [
         "all",
         ["any", ["==", ["geometry-type"], "LineString"], ["==", ["geometry-type"], "MultiLineString"]],
-        ["match", ["get", "category"], finalCategories, true, false],
+        ["match", ["get", "category"], activeLineCategories, true, false],
       ]);
       setVisibility("geoStruct-line", true);
+    } else {
+      setVisibility("geoStruct-line", false);
     }
 
+    // Update fault polygons (разломы)
     setVisibility(
       "geoStruct-fault-fill",
-      infrastructureCategories.tectonicFaults ?? true
+      infrastructureCategories.tectonicFaults === true
     );
 
-    const showPoints = infrastructureCategories.landslides ?? true;
+    // Update points (оползни)
     if (map.getLayer("geoStruct-point")) {
-      map.setFilter("geoStruct-point", [
-        "match",
-        ["get", "category"],
-        ["оползни"],
-        true,
-        false,
-      ]);
-      setVisibility("geoStruct-point", showPoints);
+      setVisibility("geoStruct-point", infrastructureCategories.landslides === true);
     }
   }, [infrastructureCategories]);
 
-  return <div ref={mapContainer} className="w-full h-full" />;
+  return (
+    <div className="relative w-full h-full">
+      <div ref={mapContainer} className="w-full h-full" />
+
+      {/* Legend */}
+      <div className="absolute bottom-4 right-4 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-3 max-w-xs">
+        {/* Risk Levels Legend */}
+        <div className="mb-3">
+          <h4 className="font-semibold text-xs mb-2 text-gray-900">Уровень риска</h4>
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <div className="w-5 h-3 rounded" style={{ backgroundColor: '#eb5a3a', opacity: 0.35 }}></div>
+              <span className="text-xs text-gray-700">Высокий</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-5 h-3 rounded" style={{ backgroundColor: '#fca85e', opacity: 0.35 }}></div>
+              <span className="text-xs text-gray-700">Средний</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-5 h-3 rounded" style={{ backgroundColor: '#66bd63', opacity: 0.35 }}></div>
+              <span className="text-xs text-gray-700">Низкий</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Infrastructure Categories Legend */}
+        <div className="pt-3 border-t border-gray-200">
+          <h4 className="font-semibold text-xs mb-2 text-gray-900">Геоструктуры</h4>
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <div className="flex items-center justify-center w-5">
+                <div className="w-2 h-2 rounded-full border border-white" style={{ backgroundColor: '#cf8805' }}></div>
+              </div>
+              <span className="text-xs text-gray-700">Оползни (точки/линии)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center justify-center w-5">
+                <div className="w-4 h-3 rounded" style={{ backgroundColor: '#ff9966', opacity: 0.45, border: '1px solid #cc5500' }}></div>
+              </div>
+              <span className="text-xs text-gray-700">Разломы (полигоны/линии)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-5 h-0.5 rounded" style={{ backgroundColor: '#0077ff' }}></div>
+              <span className="text-xs text-gray-700">Селевые пути (линии)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
