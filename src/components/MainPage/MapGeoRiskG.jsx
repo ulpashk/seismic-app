@@ -10,6 +10,7 @@ export default function GeoRiskMapDashboard() {
   const overlayRef = useRef(null);
   const isFirstRender = useRef(true);
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [geoStructsLoaded, setGeoStructsLoaded] = useState(false);
 
   // State management
   const [geoData, setGeoData] = useState(null);
@@ -88,11 +89,18 @@ export default function GeoRiskMapDashboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        console.log("🔄 Fetching geostructures data...");
         const query = buildQuery();
         const res = await fetch(
-          `https://admin.smartalmaty.kz/api/v1/address/clickhouse/geostructures/${query}`
+          `https://admin.smartalmaty.kz/api/v1/address/clickhouse/geostructures${query}`
         );
+
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+
         const data = await res.json();
+        console.log("📦 Raw geostructures response:", data);
 
         if (data?.features) {
           const normalized = data.features
@@ -135,9 +143,12 @@ export default function GeoRiskMapDashboard() {
             mediumRisk: medium,
             lowRisk: low
           });
+        } else {
+          console.warn("⚠️ No features found in geostructures response");
+          setGeoData({ type: "FeatureCollection", features: [] });
         }
       } catch (err) {
-        console.error("Failed to fetch data:", err);
+        console.error("❌ Failed to fetch geostructures data:", err);
         setGeoData({ type: "FeatureCollection", features: [] });
       }
     };
@@ -169,10 +180,8 @@ export default function GeoRiskMapDashboard() {
     map.on("load", () => {
       console.log("🗺️ Map loaded event fired");
       setMapLoaded(true);
-
       map.addControl(overlayRef.current);
-
-      console.log("🎯 Tiles disabled - geostructures only mode");
+      console.log("✅ Map initialized, waiting for geostructures to load first");
     });
 
     return () => {
@@ -196,6 +205,9 @@ export default function GeoRiskMapDashboard() {
 
     console.log("🎨 Changing map style to:", mapStyle);
 
+    // Reset geoStructsLoaded flag so layers are recreated in correct order
+    setGeoStructsLoaded(false);
+
     const API_KEY = "9zZ4lJvufSPFPoOGi6yZ";
     const styleUrls = {
       basic: `https://api.maptiler.com/maps/basic-v2/style.json?key=${API_KEY}`,
@@ -204,12 +216,12 @@ export default function GeoRiskMapDashboard() {
     };
 
     mapRef.current.setStyle(styleUrls[mapStyle]);
-    
-    // After style change, layers need to be recreated
-    mapRef.current.once("style.load", () => {
-      console.log("🔄 Style loaded after change, layers will be recreated");
-    });
-  }, [mapStyle, mapLoaded]);
+
+    // Layers will be automatically recreated by effects:
+    // 1. GeoStructs effect will recreate geoStruct layers
+    // 2. Tiles effect will recreate tiles AFTER geoStructs (ensuring correct order)
+    console.log("🔄 Style changed, layers will be recreated automatically in correct order");
+  }, [mapStyle, mapLoaded, buildQuery]);
 
   // Add geoStruct layers to map
   const addGeoStructLayers = useCallback((map) => {
@@ -320,7 +332,8 @@ export default function GeoRiskMapDashboard() {
     const updateData = () => {
       console.log("⚙️ updateData called, styleLoaded:", map.isStyleLoaded());
       if (!map.isStyleLoaded()) {
-        console.log("⏳ Style not loaded, waiting...");
+        console.log("⏳ Style not ready, scheduling retry...");
+        setTimeout(updateData, 100);
         return;
       }
 
@@ -342,6 +355,9 @@ export default function GeoRiskMapDashboard() {
           }
         });
 
+        // Mark geostructs as loaded so tiles can be added on top
+        setGeoStructsLoaded(true);
+
         // Trigger filter update after layers are created
         if (layersCreated) {
           console.log("🔄 Layers just created, triggering filter update...");
@@ -349,22 +365,104 @@ export default function GeoRiskMapDashboard() {
           setTimeout(() => {
             const visibilityEvent = new CustomEvent('layers-ready');
             window.dispatchEvent(visibilityEvent);
-          }, 50);
+          }, 100);
         }
 
-        console.log("✅ Data loaded, visibility effect will apply filters");
+        console.log("✅ GeoStructs loaded, tiles will now be added on top");
       } else {
         console.log("❌ geoStruct source not found!");
       }
     };
 
-    if (map.isStyleLoaded()) {
-      updateData();
-    } else {
-      console.log("⏳ Waiting for style.load event...");
-      map.once("style.load", updateData);
-    }
+    // Use timeout to give the map time to fully initialize
+    const timeoutId = setTimeout(updateData, 50);
+
+    return () => clearTimeout(timeoutId);
   }, [geoData, mapLoaded, addGeoStructLayers]);
+
+  // Add tiles AFTER geostructures are loaded (so geostructs appear on top)
+  useEffect(() => {
+    if (!mapRef.current || !mapLoaded || !geoStructsLoaded) {
+      console.log("⏸️ Waiting to add tiles:", { mapLoaded, geoStructsLoaded });
+      return;
+    }
+
+    const map = mapRef.current;
+    const baseUrl = "https://admin.smartalmaty.kz/api/v1/address/postgis/geo-risk-tile";
+    const query = buildQuery();
+    const tileUrl = `${baseUrl}/{z}/{x}/{y}.pbf${query}`;
+    console.log("🗺️ Adding/updating tiles AFTER geostructs with URL:", tileUrl);
+
+    const addTiles = () => {
+      if (!map.isStyleLoaded()) {
+        console.log("⏳ Style not ready for tiles, retrying...");
+        setTimeout(addTiles, 100);
+        return;
+      }
+
+      // Clean up existing layers/sources
+      if (map.getLayer("geoRisk-fill")) {
+        map.removeLayer("geoRisk-fill");
+      }
+      if (map.getSource("geoRisk")) {
+        map.removeSource("geoRisk");
+      }
+
+      // Add tile source
+      map.addSource("geoRisk", {
+        type: "vector",
+        tiles: [tileUrl],
+        minzoom: 0,
+        maxzoom: 14
+      });
+
+      // Add tile layer BEFORE the first geoStruct layer (so geostructs render on top)
+      const firstGeoStructLayer = map.getLayer("fault-fill") ? "fault-fill" :
+                                   map.getLayer("struct-lines") ? "struct-lines" :
+                                   map.getLayer("struct-points") ? "struct-points" : undefined;
+
+      map.addLayer({
+        id: "geoRisk-fill",
+        type: "fill",
+        source: "geoRisk",
+        "source-layer": "geo_risk",
+        paint: {
+          "fill-color": ["case", ["has", "color_GRI"], ["get", "color_GRI"], "#33a456"],
+          "fill-opacity": 0.45
+        }
+      }, firstGeoStructLayer); // Insert before first geoStruct layer
+
+      // Attach popup handlers
+      map.on("click", "geoRisk-fill", (e) => {
+        if (e.features && e.features.length > 0) {
+          const props = e.features[0].properties;
+          new maplibregl.Popup()
+            .setLngLat(e.lngLat)
+            .setHTML(`
+              <div style="padding: 8px;">
+                <h3 style="margin: 0 0 8px 0; font-weight: bold;">${props.address || "Геориск"}</h3>
+                <p style="margin: 4px 0;"><strong>Класс риска:</strong> ${props.GRI_class || "N/A"}</p>
+                <p style="margin: 4px 0;"><strong>Район:</strong> ${props.district || "N/A"}</p>
+              </div>
+            `)
+            .addTo(map);
+        }
+      });
+
+      map.on("mouseenter", "geoRisk-fill", () => {
+        map.getCanvas().style.cursor = "pointer";
+      });
+
+      map.on("mouseleave", "geoRisk-fill", () => {
+        map.getCanvas().style.cursor = "";
+      });
+
+      console.log("✅ Tiles added/updated UNDER geostructs (geostructs on top)");
+    };
+
+    const timeoutId = setTimeout(addTiles, 100);
+    return () => clearTimeout(timeoutId);
+  }, [filters.districts, filters.riskLevels, buildQuery, mapLoaded, geoStructsLoaded]);
 
   // Update layer visibility and filters
   useEffect(() => {
@@ -450,15 +548,17 @@ export default function GeoRiskMapDashboard() {
     };
     window.addEventListener('layers-ready', handleLayersReady);
 
-    // Initial update with delay
-    const timeoutId = setTimeout(() => {
+    // Initial update with delay and retry mechanism
+    const attemptUpdate = () => {
       if (map.isStyleLoaded()) {
         updateVisibility();
       } else {
-        console.log("⏳ Waiting for style.load event for visibility update...");
-        map.once("style.load", updateVisibility);
+        console.log("⏳ Style not ready for visibility update, scheduling retry...");
+        setTimeout(attemptUpdate, 100);
       }
-    }, 100);
+    };
+
+    const timeoutId = setTimeout(attemptUpdate, 150);
 
     return () => {
       clearTimeout(timeoutId);
