@@ -8,6 +8,7 @@ export default function GeoRiskMapDashboard() {
   const mapContainer = useRef(null);
   const mapRef = useRef(null);
   const overlayRef = useRef(null);
+  const isFirstRender = useRef(true);
   const [mapLoaded, setMapLoaded] = useState(false);
 
   // State management
@@ -119,7 +120,7 @@ export default function GeoRiskMapDashboard() {
           console.log("📊 Categories:", categoryCounts);
           console.log("📐 Geometry types:", geometryTypes);
 
-          // Set geoData - THIS WAS MISSING!
+          // Set geoData
           setGeoData({ ...data, features: normalized });
           console.log("💾 geoData state updated");
 
@@ -171,17 +172,7 @@ export default function GeoRiskMapDashboard() {
 
       map.addControl(overlayRef.current);
 
-      // ========== TILES DISABLED ==========
-      // Focusing on geostructures only for now
       console.log("🎯 Tiles disabled - geostructures only mode");
-
-      // GeoStruct layers will be added by the addGeoStructLayers function
-      // (This ensures they persist after style changes)
-
-      // Popup handlers disabled (geoRisk layers removed)
-      // map.on("click", "geoRisk-fill", (e) => { ... });
-      // map.on("mouseenter", "geoRisk-fill", () => { ... });
-      // map.on("mouseleave", "geoRisk-fill", () => { ... });
     });
 
     return () => {
@@ -193,15 +184,13 @@ export default function GeoRiskMapDashboard() {
   }, []);
 
   // Update map style (only when user changes it, not on initial load)
-  const [initialStyleSet, setInitialStyleSet] = useState(false);
-
   useEffect(() => {
     if (!mapRef.current || !mapLoaded) return;
 
     // Skip the first run (map already has a style from initialization)
-    if (!initialStyleSet) {
+    if (isFirstRender.current) {
       console.log("⏭️ Skipping initial style change");
-      setInitialStyleSet(true);
+      isFirstRender.current = false;
       return;
     }
 
@@ -215,7 +204,12 @@ export default function GeoRiskMapDashboard() {
     };
 
     mapRef.current.setStyle(styleUrls[mapStyle]);
-  }, [mapStyle, mapLoaded, initialStyleSet]);
+    
+    // After style change, layers need to be recreated
+    mapRef.current.once("style.load", () => {
+      console.log("🔄 Style loaded after change, layers will be recreated");
+    });
+  }, [mapStyle, mapLoaded]);
 
   // Add geoStruct layers to map
   const addGeoStructLayers = useCallback((map) => {
@@ -331,7 +325,7 @@ export default function GeoRiskMapDashboard() {
       }
 
       // Ensure layers exist (recreate after style change)
-      addGeoStructLayers(map);
+      const layersCreated = addGeoStructLayers(map);
 
       const src = map.getSource("geoStruct");
       if (src) {
@@ -348,7 +342,16 @@ export default function GeoRiskMapDashboard() {
           }
         });
 
-        // Filters will be applied by the visibility effect
+        // Trigger filter update after layers are created
+        if (layersCreated) {
+          console.log("🔄 Layers just created, triggering filter update...");
+          // Force a small delay to ensure layers are fully initialized
+          setTimeout(() => {
+            const visibilityEvent = new CustomEvent('layers-ready');
+            window.dispatchEvent(visibilityEvent);
+          }, 50);
+        }
+
         console.log("✅ Data loaded, visibility effect will apply filters");
       } else {
         console.log("❌ geoStruct source not found!");
@@ -358,69 +361,14 @@ export default function GeoRiskMapDashboard() {
     if (map.isStyleLoaded()) {
       updateData();
     } else {
-      console.log("⏳ Waiting for styledata event...");
-      map.once("styledata", updateData);
+      console.log("⏳ Waiting for style.load event...");
+      map.once("style.load", updateData);
     }
   }, [geoData, mapLoaded, addGeoStructLayers]);
 
-  // TILES DISABLED - Update tiles when filters change
-  // useEffect(() => {
-  //   if (!mapRef.current || !mapLoaded) return;
-  //   const map = mapRef.current;
-
-  //   const baseUrl = "https://admin.smartalmaty.kz/api/v1/address/postgis/geo-risk-tile";
-  //   const query = buildQuery();
-  //   const tileUrl = `${baseUrl}/{z}/{x}/{y}.pbf${query}`;
-
-  //   const updateTiles = () => {
-  //     if (!map.isStyleLoaded()) {
-  //       map.once("styledata", updateTiles);
-  //       return;
-  //     }
-
-  //     if (map.getSource("geoRisk")) {
-  //       if (map.getLayer("geoRisk-outline")) map.removeLayer("geoRisk-outline");
-  //       if (map.getLayer("geoRisk-fill")) map.removeLayer("geoRisk-fill");
-  //       map.removeSource("geoRisk");
-  //     }
-
-  //     map.addSource("geoRisk", {
-  //       type: "vector",
-  //       tiles: [tileUrl],
-  //       minzoom: 0,
-  //       maxzoom: 14
-  //     });
-
-  //     map.addLayer({
-  //       id: "geoRisk-fill",
-  //       type: "fill",
-  //       source: "geoRisk",
-  //       "source-layer": "geo_risk",
-  //       paint: {
-  //         "fill-color": ["case", ["has", "color_GRI"], ["get", "color_GRI"], "#33a456"],
-  //         "fill-opacity": 0.45
-  //       }
-  //     });
-
-  //     map.addLayer({
-  //       id: "geoRisk-outline",
-  //       type: "line",
-  //       source: "geoRisk",
-  //       "source-layer": "geo_risk",
-  //       paint: {
-  //         "line-color": "#ffffff",
-  //         "line-width": 1,
-  //         "line-opacity": 0.3
-  //       }
-  //     });
-  //   };
-
-  //   updateTiles();
-  // }, [filters.districts, filters.riskLevels, buildQuery, mapLoaded]);
-
   // Update layer visibility and filters
   useEffect(() => {
-    if (!mapRef.current || !mapLoaded || !geoData) return; // Wait for data to be loaded first
+    if (!mapRef.current || !mapLoaded || !geoData) return;
     const map = mapRef.current;
 
     const updateVisibility = () => {
@@ -437,8 +385,8 @@ export default function GeoRiskMapDashboard() {
 
       console.log("🔍 Layer check:", { hasStructLines, hasStructPoints, hasFaultFill });
 
-      if (!hasStructLines) {
-        console.log("⏳ Layers not ready yet, skipping filter update");
+      if (!hasStructLines || !hasStructPoints || !hasFaultFill) {
+        console.log("⏳ Layers not ready yet, will retry when layers-ready event fires");
         return;
       }
 
@@ -464,7 +412,6 @@ export default function GeoRiskMapDashboard() {
       if (map.getLayer("struct-lines")) {
         if (enabledCategories.length > 0) {
           map.setLayoutProperty("struct-lines", "visibility", "visible");
-          // Set filter to only show enabled categories
           map.setFilter("struct-lines", [
             "all",
             ["in", ["geometry-type"], ["literal", ["LineString", "MultiLineString"]]],
@@ -496,17 +443,27 @@ export default function GeoRiskMapDashboard() {
       });
     };
 
-    // Use a slight delay to ensure layers are fully ready
+    // Listen for layers-ready event (triggered after layer creation)
+    const handleLayersReady = () => {
+      console.log("🎉 layers-ready event received");
+      updateVisibility();
+    };
+    window.addEventListener('layers-ready', handleLayersReady);
+
+    // Initial update with delay
     const timeoutId = setTimeout(() => {
       if (map.isStyleLoaded()) {
         updateVisibility();
       } else {
-        console.log("⏳ Waiting for styledata event for visibility update...");
-        map.once("styledata", updateVisibility);
+        console.log("⏳ Waiting for style.load event for visibility update...");
+        map.once("style.load", updateVisibility);
       }
     }, 100);
 
-    return () => clearTimeout(timeoutId);
+    return () => {
+      clearTimeout(timeoutId);
+      window.removeEventListener('layers-ready', handleLayersReady);
+    };
   }, [filters.categories, mapLoaded, geoData]);
 
   const toggleRiskLevel = (level) => {
@@ -575,6 +532,25 @@ export default function GeoRiskMapDashboard() {
         </button>
 
         <div className="flex flex-col h-full p-6 overflow-hidden">
+          {/* Stats Cards */}
+          <div className="grid grid-cols-2 gap-3 mb-6">
+            <div className="bg-gradient-to-br from-blue-500/20 to-blue-600/20 p-4 rounded-xl border border-blue-500/30">
+              <div className="text-blue-300 text-sm mb-1">Всего зон</div>
+              <div className="text-white text-2xl font-bold">{stats.totalAreas}</div>
+            </div>
+            <div className="bg-gradient-to-br from-red-500/20 to-red-600/20 p-4 rounded-xl border border-red-500/30">
+              <div className="text-red-300 text-sm mb-1">Высокий риск</div>
+              <div className="text-white text-2xl font-bold">{stats.highRisk}</div>
+            </div>
+            <div className="bg-gradient-to-br from-yellow-500/20 to-yellow-600/20 p-4 rounded-xl border border-yellow-500/30">
+              <div className="text-yellow-300 text-sm mb-1">Средний риск</div>
+              <div className="text-white text-2xl font-bold">{stats.mediumRisk}</div>
+            </div>
+            <div className="bg-gradient-to-br from-green-500/20 to-green-600/20 p-4 rounded-xl border border-green-500/30">
+              <div className="text-green-300 text-sm mb-1">Низкий риск</div>
+              <div className="text-white text-2xl font-bold">{stats.lowRisk}</div>
+            </div>
+          </div>
 
           {/* Tabs */}
           <div className="flex gap-2 mb-4 flex-shrink-0">
@@ -585,29 +561,19 @@ export default function GeoRiskMapDashboard() {
               <Filter className="w-4 h-4 inline mr-2" />
               Фильтры
             </button>
+            <button
+              onClick={() => setActiveTab("layers")}
+              className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${activeTab === "layers" ? "bg-blue-500 text-white" : "bg-gray-700 text-gray-300 hover:bg-gray-600"}`}
+            >
+              <Layers className="w-4 h-4 inline mr-2" />
+              Слои
+            </button>
           </div>
 
           {/* Content */}
           <div className="flex-1 overflow-y-auto">
             {activeTab === "filters" && (
               <div className="space-y-6">
-                {/* Districts */}
-                <div>
-                  <h3 className="text-white font-semibold mb-3">Районы</h3>
-                  <div className="space-y-2 max-h-64 overflow-y-auto">
-                    {districts.map(district => (
-                      <label key={district} className="flex items-center gap-3 p-2 bg-gray-700/50 rounded-lg hover:bg-gray-700 cursor-pointer transition-colors">
-                        <input
-                          type="checkbox"
-                          checked={filters.districts.includes(district)}
-                          onChange={() => toggleDistrict(district)}
-                          className="w-4 h-4 rounded accent-blue-500"
-                        />
-                        <span className="text-gray-200 text-sm">{district}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
                 {/* Risk Levels */}
                 <div>
                   <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
@@ -636,33 +602,19 @@ export default function GeoRiskMapDashboard() {
                   </div>
                 </div>
 
-                
-                <div className="space-y-4">
-                  <h3 className="text-white font-semibold mb-3">Категории инфраструктуры</h3>
-                  <div className="space-y-3">
-                    {Object.entries(filters.categories).map(([key, enabled]) => (
-                      <label key={key} className="flex items-center gap-3 p-4 bg-gray-700/50 rounded-lg hover:bg-gray-700 cursor-pointer transition-colors">
+                {/* Districts */}
+                <div>
+                  <h3 className="text-white font-semibold mb-3">Районы</h3>
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {districts.map(district => (
+                      <label key={district} className="flex items-center gap-3 p-2 bg-gray-700/50 rounded-lg hover:bg-gray-700 cursor-pointer transition-colors">
                         <input
                           type="checkbox"
-                          checked={enabled}
-                          onChange={() => toggleCategory(key)}
-                          className="w-5 h-5 rounded accent-blue-500"
+                          checked={filters.districts.includes(district)}
+                          onChange={() => toggleDistrict(district)}
+                          className="w-4 h-4 rounded accent-blue-500"
                         />
-                        <div className="flex-1">
-                          <div className="text-white font-medium">
-                            {key === "mudflow" ? "Селевые потоки" : 
-                             key === "landslide" ? "Оползни" : 
-                             "Тектонические разломы"}
-                          </div>
-                          <div className="text-gray-400 text-xs mt-0.5">
-                            {categoryLabelMap[key]}
-                          </div>
-                        </div>
-                        <div className={`w-4 h-4 rounded-full ${
-                          key === "mudflow" ? "bg-blue-400" :
-                          key === "landslide" ? "bg-orange-400" :
-                          "bg-red-400"
-                        }`} />
+                        <span className="text-gray-200 text-sm">{district}</span>
                       </label>
                     ))}
                   </div>
