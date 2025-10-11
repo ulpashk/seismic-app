@@ -85,12 +85,61 @@ export default function GeoRiskMapDashboard() {
     return params.length ? `?${params.join("&")}&page_size=5000` : "?page_size=5000";
   }, [filters.districts, filters.riskLevels]);
 
-  // Fetch geo data
+  // Fetch geo data with caching
   useEffect(() => {
     const fetchData = async () => {
       try {
-        console.log("🔄 Fetching geostructures data...");
         const query = buildQuery();
+        const cacheKey = `geostructures_${query}`;
+        const cacheTimestampKey = `${cacheKey}_timestamp`;
+        const CACHE_DURATION = 60 * 60 * 1000; // 1 hour in milliseconds
+
+        // Check cache first
+        const cachedData = localStorage.getItem(cacheKey);
+        const cachedTimestamp = localStorage.getItem(cacheTimestampKey);
+        const now = Date.now();
+
+        if (cachedData && cachedTimestamp) {
+          const age = now - parseInt(cachedTimestamp);
+          if (age < CACHE_DURATION) {
+            console.log("✅ Loading geostructures from cache (age:", Math.round(age / 1000), "seconds)");
+            const data = JSON.parse(cachedData);
+
+            // Process cached data same way as fresh data
+            if (data?.features) {
+              const normalized = data.features
+                .filter(f => ["Point", "LineString", "MultiLineString", "Polygon", "MultiPolygon"].includes(f.geometry?.type))
+                .map(f => {
+                  const raw = f.properties?.category?.toLowerCase?.() || "";
+                  if (raw.includes("ополз")) f.properties.category = "оползни";
+                  else if (raw.includes("разлом")) f.properties.category = "разломы";
+                  else if (raw.includes("сель")) f.properties.category = "сель";
+                  return f;
+                });
+
+              setGeoData({ ...data, features: normalized });
+
+              const high = normalized.filter(f => f.properties?.GRI_class === "высокий").length;
+              const medium = normalized.filter(f => f.properties?.GRI_class === "средний").length;
+              const low = normalized.filter(f => f.properties?.GRI_class === "низкий").length;
+
+              setStats({
+                totalAreas: normalized.length,
+                highRisk: high,
+                mediumRisk: medium,
+                lowRisk: low
+              });
+
+              console.log("💾 Loaded", normalized.length, "features from cache");
+              return; // Exit early, use cached data
+            }
+          } else {
+            console.log("⏰ Cache expired (age:", Math.round(age / 1000), "seconds), fetching fresh data");
+          }
+        }
+
+        // No cache or expired - fetch from API
+        console.log("🔄 Fetching fresh geostructures data from API...");
         const res = await fetch(
           `https://admin.smartalmaty.kz/api/v1/address/clickhouse/geostructures${query}`
         );
@@ -101,6 +150,15 @@ export default function GeoRiskMapDashboard() {
 
         const data = await res.json();
         console.log("📦 Raw geostructures response:", data);
+
+        // Cache the response
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify(data));
+          localStorage.setItem(cacheTimestampKey, now.toString());
+          console.log("💾 Cached geostructures data for future use");
+        } catch (e) {
+          console.warn("⚠️ Failed to cache data (localStorage full?):", e);
+        }
 
         if (data?.features) {
           const normalized = data.features
@@ -165,7 +223,7 @@ export default function GeoRiskMapDashboard() {
     const map = new maplibregl.Map({
       container: mapContainer.current,
       style: `https://api.maptiler.com/maps/basic-v2/style.json?key=${API_KEY}`,
-      center: [76.886, 43.238],
+      center: [76.906, 43.198],
       zoom: 11,
       pitch: 45,
       bearing: 0,
@@ -620,7 +678,7 @@ export default function GeoRiskMapDashboard() {
       </div>
 
       {/* Side Panel */}
-      <div className={`absolute top-20 left-4 bottom-4 w-96 bg-white/95 backdrop-blur-lg rounded-2xl shadow-2xl transition-transform duration-300 z-20 pointer-events-auto ${isPanelOpen ? "translate-x-0" : "-translate-x-[420px]"}`}>
+      <div className={`absolute top-20 left-4 bottom-20 w-96 bg-white/95 backdrop-blur-lg rounded-2xl shadow-2xl transition-transform duration-300 z-20 pointer-events-auto ${isPanelOpen ? "translate-x-0" : "-translate-x-[420px]"}`}>
         {/* Toggle Button */}
         <button
           onClick={() => setIsPanelOpen(!isPanelOpen)}
