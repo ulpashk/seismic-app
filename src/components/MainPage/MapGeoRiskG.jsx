@@ -480,12 +480,10 @@ export default function GeoRiskMapDashboard() {
     }));
   };
 
-  const toggleDistrict = (district) => {
+  const selectDistrict = (district) => {
     setFilters(prev => ({
       ...prev,
-      districts: prev.districts.includes(district)
-        ? prev.districts.filter(d => d !== district)
-        : [...prev.districts, district]
+      districts: [district]
     }));
   };
 
@@ -522,112 +520,63 @@ export default function GeoRiskMapDashboard() {
       </div>
 
       {/* Side Panel */}
-      <div className={`absolute top-20 left-4 bottom-4 w-96 bg-gray-800/95 backdrop-blur-lg rounded-2xl shadow-2xl transition-transform duration-300 z-20 pointer-events-auto ${isPanelOpen ? "translate-x-0" : "-translate-x-[420px]"}`}>
+      <div className={`absolute top-20 left-4 bottom-4 w-96 bg-white/95 backdrop-blur-lg rounded-2xl shadow-2xl transition-transform duration-300 z-20 pointer-events-auto ${isPanelOpen ? "translate-x-0" : "-translate-x-[420px]"}`}>
         {/* Toggle Button */}
         <button
           onClick={() => setIsPanelOpen(!isPanelOpen)}
-          className="absolute -right-10 top-4 bg-gray-800 text-white p-2 rounded-r-lg hover:bg-gray-700 transition-colors"
+          className="absolute -right-10 top-4 bg-white text-gray-700 p-2 rounded-r-lg hover:bg-gray-100 transition-colors shadow-lg"
         >
           {isPanelOpen ? <X className="w-5 h-5" /> : <Filter className="w-5 h-5" />}
         </button>
 
         <div className="flex flex-col h-full p-6 overflow-hidden">
           {/* Stats Cards */}
-          <div className="grid grid-cols-2 gap-3 mb-6">
-            <div className="bg-gradient-to-br from-blue-500/20 to-blue-600/20 p-4 rounded-xl border border-blue-500/30">
-              <div className="text-blue-300 text-sm mb-1">Всего зон</div>
-              <div className="text-white text-2xl font-bold">{stats.totalAreas}</div>
+          {/* <div className="grid grid-cols-2 gap-3 mb-6">
+            <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
+              <div className="text-blue-600 text-sm mb-1">Всего зон</div>
+              <div className="text-gray-900 text-2xl font-bold">{stats.totalAreas}</div>
             </div>
-            <div className="bg-gradient-to-br from-red-500/20 to-red-600/20 p-4 rounded-xl border border-red-500/30">
-              <div className="text-red-300 text-sm mb-1">Высокий риск</div>
-              <div className="text-white text-2xl font-bold">{stats.highRisk}</div>
+            <div className="bg-red-50 p-4 rounded-xl border border-red-200">
+              <div className="text-red-600 text-sm mb-1">Высокий риск</div>
+              <div className="text-gray-900 text-2xl font-bold">{stats.highRisk}</div>
             </div>
-            <div className="bg-gradient-to-br from-yellow-500/20 to-yellow-600/20 p-4 rounded-xl border border-yellow-500/30">
-              <div className="text-yellow-300 text-sm mb-1">Средний риск</div>
-              <div className="text-white text-2xl font-bold">{stats.mediumRisk}</div>
+            <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-200">
+              <div className="text-yellow-600 text-sm mb-1">Средний риск</div>
+              <div className="text-gray-900 text-2xl font-bold">{stats.mediumRisk}</div>
             </div>
-            <div className="bg-gradient-to-br from-green-500/20 to-green-600/20 p-4 rounded-xl border border-green-500/30">
-              <div className="text-green-300 text-sm mb-1">Низкий риск</div>
-              <div className="text-white text-2xl font-bold">{stats.lowRisk}</div>
+            <div className="bg-green-50 p-4 rounded-xl border border-green-200">
+              <div className="text-green-600 text-sm mb-1">Низкий риск</div>
+              <div className="text-gray-900 text-2xl font-bold">{stats.lowRisk}</div>
             </div>
-          </div>
+          </div> */}
 
           {/* Tabs */}
-          <div className="flex gap-2 mb-4 flex-shrink-0">
+          {/* <div className="flex gap-2 mb-4 flex-shrink-0">
             <button
               onClick={() => setActiveTab("filters")}
-              className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${activeTab === "filters" ? "bg-blue-500 text-white" : "bg-gray-700 text-gray-300 hover:bg-gray-600"}`}
+              className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${activeTab === "filters" ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
             >
               <Filter className="w-4 h-4 inline mr-2" />
               Фильтры
             </button>
             <button
               onClick={() => setActiveTab("layers")}
-              className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${activeTab === "layers" ? "bg-blue-500 text-white" : "bg-gray-700 text-gray-300 hover:bg-gray-600"}`}
+              className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${activeTab === "layers" ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
             >
               <Layers className="w-4 h-4 inline mr-2" />
               Слои
             </button>
-          </div>
+          </div> */}
 
           {/* Content */}
           <div className="flex-1 overflow-y-auto">
             {activeTab === "filters" && (
               <div className="space-y-6">
-                {/* Risk Levels */}
-                <div>
-                  <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4 text-red-400" />
-                    Уровни риска
-                  </h3>
-                  <div className="space-y-2">
-                    {Object.entries(filters.riskLevels).map(([key, enabled]) => (
-                      <label key={key} className="flex items-center gap-3 p-3 bg-gray-700/50 rounded-lg hover:bg-gray-700 cursor-pointer transition-colors">
-                        <input
-                          type="checkbox"
-                          checked={enabled}
-                          onChange={() => toggleRiskLevel(key)}
-                          className="w-5 h-5 rounded accent-blue-500"
-                        />
-                        <span className={`flex-1 font-medium ${
-                          key === "high" ? "text-red-400" :
-                          key === "medium" ? "text-yellow-400" :
-                          "text-green-400"
-                        }`}>
-                          {key === "high" ? "Высокий" : key === "medium" ? "Средний" : "Низкий"}
-                        </span>
-                        {enabled ? <Eye className="w-4 h-4 text-gray-400" /> : <EyeOff className="w-4 h-4 text-gray-500" />}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Districts */}
-                <div>
-                  <h3 className="text-white font-semibold mb-3">Районы</h3>
-                  <div className="space-y-2 max-h-64 overflow-y-auto">
-                    {districts.map(district => (
-                      <label key={district} className="flex items-center gap-3 p-2 bg-gray-700/50 rounded-lg hover:bg-gray-700 cursor-pointer transition-colors">
-                        <input
-                          type="checkbox"
-                          checked={filters.districts.includes(district)}
-                          onChange={() => toggleDistrict(district)}
-                          className="w-4 h-4 rounded accent-blue-500"
-                        />
-                        <span className="text-gray-200 text-sm">{district}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeTab === "layers" && (
-              <div className="space-y-4">
-                <h3 className="text-white font-semibold mb-3">Категории инфраструктуры</h3>
+                <div className="space-y-4">
+                <h3 className="text-gray-900 font-semibold mb-3">Категории инфраструктуры</h3>
                 <div className="space-y-3">
                   {Object.entries(filters.categories).map(([key, enabled]) => (
-                    <label key={key} className="flex items-center gap-3 p-4 bg-gray-700/50 rounded-lg hover:bg-gray-700 cursor-pointer transition-colors">
+                    <label key={key} className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors border border-gray-200">
                       <input
                         type="checkbox"
                         checked={enabled}
@@ -635,12 +584,107 @@ export default function GeoRiskMapDashboard() {
                         className="w-5 h-5 rounded accent-blue-500"
                       />
                       <div className="flex-1">
-                        <div className="text-white font-medium">
+                        <div className="text-gray-900 font-medium">
                           {key === "mudflow" ? "Селевые потоки" : 
                            key === "landslide" ? "Оползни" : 
                            "Тектонические разломы"}
                         </div>
-                        <div className="text-gray-400 text-xs mt-0.5">
+                        <div className="text-gray-500 text-xs mt-0.5">
+                          {categoryLabelMap[key]}
+                        </div>
+                      </div>
+                      <div className={`w-4 h-4 rounded-full ${
+                        key === "mudflow" ? "bg-blue-400" :
+                        key === "landslide" ? "bg-orange-400" :
+                        "bg-red-400"
+                      }`} />
+                    </label>
+                  ))}
+                </div>
+              </div>
+                {/* Risk Levels */}
+                <div>
+                  <h3 className="text-gray-900 font-semibold mb-3 flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-red-500" />
+                    Уровни риска
+                  </h3>
+                  <div className="space-y-2">
+                    {Object.entries(filters.riskLevels).map(([key, enabled]) => (
+                      <label key={key} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors border border-gray-200">
+                        <input
+                          type="checkbox"
+                          checked={enabled}
+                          onChange={() => toggleRiskLevel(key)}
+                          className="w-5 h-5 rounded accent-blue-500"
+                        />
+                        <span className={`flex-1 font-medium ${
+                          key === "high" ? "text-red-600" :
+                          key === "medium" ? "text-yellow-600" :
+                          "text-green-600"
+                        }`}>
+                          {key === "high" ? "Высокий" : key === "medium" ? "Средний" : "Низкий"}
+                        </span>
+                        {enabled ? <Eye className="w-4 h-4 text-gray-400" /> : <EyeOff className="w-4 h-4 text-gray-300" />}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Districts */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-gray-900 font-semibold">Районы</h3>
+                    <button
+                      onClick={() => setFilters(prev => ({ ...prev, districts: [] }))}
+                      className="text-xs text-blue-600 hover:text-blue-700 font-medium px-2 py-1 rounded hover:bg-blue-50 transition-colors"
+                    >
+                      Все районы
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    {districts.map(district => {
+                      const isSelected = filters.districts.includes(district);
+                      return (
+                        <button
+                          key={district}
+                          onClick={() => selectDistrict(district)}
+                          className={`w-full text-left p-3 rounded-lg transition-colors border ${
+                            isSelected 
+                              ? "bg-blue-50 border-blue-300 text-blue-900" 
+                              : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className={`w-2 h-2 rounded-full ${isSelected ? "bg-blue-500" : "bg-gray-400"}`}></span>
+                            <span className="text-sm font-medium">{district}</span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === "layers" && (
+              <div className="space-y-4">
+                <h3 className="text-gray-900 font-semibold mb-3">Категории инфраструктуры</h3>
+                <div className="space-y-3">
+                  {Object.entries(filters.categories).map(([key, enabled]) => (
+                    <label key={key} className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors border border-gray-200">
+                      <input
+                        type="checkbox"
+                        checked={enabled}
+                        onChange={() => toggleCategory(key)}
+                        className="w-5 h-5 rounded accent-blue-500"
+                      />
+                      <div className="flex-1">
+                        <div className="text-gray-900 font-medium">
+                          {key === "mudflow" ? "Селевые потоки" : 
+                           key === "landslide" ? "Оползни" : 
+                           "Тектонические разломы"}
+                        </div>
+                        <div className="text-gray-500 text-xs mt-0.5">
                           {categoryLabelMap[key]}
                         </div>
                       </div>
@@ -659,33 +703,33 @@ export default function GeoRiskMapDashboard() {
       </div>
 
       {/* Legend */}
-      <div className="absolute bottom-4 right-4 bg-gray-800/95 backdrop-blur-lg rounded-xl p-4 shadow-2xl z-10 pointer-events-auto">
-        <h4 className="text-white font-semibold mb-3 text-sm">Легенда</h4>
+      <div className="absolute bottom-4 right-4 bg-white/95 backdrop-blur-lg rounded-xl p-4 shadow-2xl z-10 pointer-events-auto border border-gray-200">
+        <h4 className="text-gray-900 font-semibold mb-3 text-sm">Легенда</h4>
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <div className="w-6 h-4 bg-red-500 rounded"></div>
-            <span className="text-gray-300 text-xs">Высокий риск</span>
+            <span className="text-gray-700 text-xs">Высокий риск</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-6 h-4 bg-yellow-500 rounded"></div>
-            <span className="text-gray-300 text-xs">Средний риск</span>
+            <span className="text-gray-700 text-xs">Средний риск</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-6 h-4 bg-green-500 rounded"></div>
-            <span className="text-gray-300 text-xs">Низкий риск</span>
+            <span className="text-gray-700 text-xs">Низкий риск</span>
           </div>
-          <div className="border-t border-gray-700 my-2"></div>
+          <div className="border-t border-gray-300 my-2"></div>
           <div className="flex items-center gap-2">
             <div className="w-6 h-1 bg-blue-400 rounded"></div>
-            <span className="text-gray-300 text-xs">Сель</span>
+            <span className="text-gray-700 text-xs">Сель</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-orange-400 rounded-full border-2 border-white"></div>
-            <span className="text-gray-300 text-xs">Оползни</span>
+            <div className="w-3 h-3 bg-orange-400 rounded-full border-2 border-gray-700"></div>
+            <span className="text-gray-700 text-xs">Оползни</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-6 h-4 bg-red-400/50 border border-red-400 rounded"></div>
-            <span className="text-gray-300 text-xs">Разломы</span>
+            <span className="text-gray-700 text-xs">Разломы</span>
           </div>
         </div>
       </div>
