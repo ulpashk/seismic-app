@@ -32,7 +32,7 @@ export default function MainPage() {
                 infrastructureCategories={infrastructureCategories}
                 densityLevels={densityLevels} 
             />
-            <div className="absolute top-[80px] left-4 z-20 w-80">
+            {/* <div className="absolute top-[80px] left-4 z-20 w-80">
                 <GeoRiskFilter 
                     mode={mode}
                     setMode={setMode}
@@ -45,7 +45,7 @@ export default function MainPage() {
                     setDensityLevels={setDensityLevels}
                     densityLevels={densityLevels}
                 />
-            </div>
+            </div> */}
         </div>
     )
 }
