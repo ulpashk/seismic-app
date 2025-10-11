@@ -90,7 +90,7 @@ export default function GeoRiskMapDashboard() {
       try {
         const query = buildQuery();
         const res = await fetch(
-          `http://localhost:8000/api/v1/address/clickhouse/geostructures/${query}`
+          `https://admin.smartalmaty.kz/api/v1/address/clickhouse/geostructures/${query}`
         );
         const data = await res.json();
 
