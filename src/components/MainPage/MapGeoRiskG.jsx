@@ -58,7 +58,6 @@ export default function GeoRiskMapDashboard() {
     "Турксибский": [76.9856814001376, 43.3409268951072]
   };
 
-
   const riskLabelMap = {
     high: "высокий",
     medium: "средний",
@@ -668,6 +667,20 @@ export default function GeoRiskMapDashboard() {
     }
   };
 
+  const resetToAllDistricts = () => {
+    setFilters(prev => ({ ...prev, districts: [] }));
+
+    // Return to original view
+    if (mapRef.current) {
+      mapRef.current.flyTo({
+        center: [76.906, 43.198],
+        zoom: 11,
+        duration: 1500,
+        essential: true
+      });
+    }
+  };
+
   return (
     <div className="relative w-full h-screen bg-gray-900 overflow-hidden">
       {/* Map Container */}
@@ -816,7 +829,7 @@ export default function GeoRiskMapDashboard() {
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-gray-900 font-semibold">Районы</h3>
                     <button
-                      onClick={() => setFilters(prev => ({ ...prev, districts: [] }))}
+                      onClick={resetToAllDistricts}
                       className="text-xs text-blue-600 hover:text-blue-700 font-medium px-2 py-1 rounded hover:bg-blue-50 transition-colors"
                     >
                       Все районы
