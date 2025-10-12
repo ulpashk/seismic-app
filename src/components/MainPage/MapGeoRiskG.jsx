@@ -46,6 +46,19 @@ export default function GeoRiskMapDashboard() {
     "Жетысуский", "Медеуский", "Наурызбайский", "Турксибский"
   ];
 
+  // District coordinates (approximate centers)
+  const districtCoordinates = {
+    "Алатауский": [76.8347886720185, 43.2987364390376],
+    "Алмалинский": [76.9087951573108, 43.2522310686198],
+    "Ауэзовский": [76.8504995220839, 43.223745973742],
+    "Бостандыкский": [76.923470827708, 43.1557279031715],
+    "Жетысуский": [76.9247715410888, 43.3089271719003],
+    "Медеуский": [77.0214117650313, 43.1639355276689],
+    "Наурызбайский": [76.8309409706471, 43.1744182686828],
+    "Турксибский": [76.9856814001376, 43.3409268951072]
+  };
+
+
   const riskLabelMap = {
     high: "высокий",
     medium: "средний",
@@ -643,6 +656,16 @@ export default function GeoRiskMapDashboard() {
       ...prev,
       districts: [district]
     }));
+
+    // Fly to district
+    if (mapRef.current && districtCoordinates[district]) {
+      mapRef.current.flyTo({
+        center: districtCoordinates[district],
+        zoom: 12,
+        duration: 1500,
+        essential: true
+      });
+    }
   };
 
   return (
