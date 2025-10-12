@@ -141,7 +141,7 @@ export default function GeoRiskMapDashboard() {
         // No cache or expired - fetch from API
         console.log("🔄 Fetching fresh geostructures data from API...");
         const res = await fetch(
-          `https://admin.smartalmaty.kz/api/v1/address/clickhouse/geostructures${query}`
+          `http://localhost:8000/api/v1/address/clickhouse/geostructures${query}`
         );
 
         if (!res.ok) {
@@ -446,7 +446,7 @@ export default function GeoRiskMapDashboard() {
     }
 
     const map = mapRef.current;
-    const baseUrl = "https://admin.smartalmaty.kz/api/v1/address/postgis/geo-risk-tile";
+    const baseUrl = "http://localhost:8000/api/v1/address/postgis/geo-risk-tile";
     const query = buildQuery();
     const tileUrl = `${baseUrl}/{z}/{x}/{y}.pbf${query}`;
     console.log("🗺️ Adding/updating tiles AFTER geostructs with URL:", tileUrl);
@@ -882,7 +882,10 @@ export default function GeoRiskMapDashboard() {
             <span className="text-gray-700 text-xs">Сель</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-orange-400 rounded-full border-2 border-gray-700"></div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-1 bg-orange-400 rounded"></div>
+              <div className="w-3 h-3 bg-orange-400 rounded-full border-2 border-white shadow-sm"></div>
+            </div>
             <span className="text-gray-700 text-xs">Оползни</span>
           </div>
           <div className="flex items-center gap-2">
