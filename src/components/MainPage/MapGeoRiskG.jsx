@@ -141,7 +141,7 @@ export default function GeoRiskMapDashboard() {
         // No cache or expired - fetch from API
         console.log("🔄 Fetching fresh geostructures data from API...");
         const res = await fetch(
-          `http://localhost:8000/api/v1/address/clickhouse/geostructures${query}`
+          `https://admin.smartalmaty.kz/api/v1/address/clickhouse/geostructures${query}`
         );
 
         if (!res.ok) {
@@ -446,7 +446,7 @@ export default function GeoRiskMapDashboard() {
     }
 
     const map = mapRef.current;
-    const baseUrl = "http://localhost:8000/api/v1/address/postgis/geo-risk-tile";
+    const baseUrl = "https://admin.smartalmaty.kz/api/v1/address/postgis/geo-risk-tile";
     const query = buildQuery();
     const tileUrl = `${baseUrl}/{z}/{x}/{y}.pbf${query}`;
     console.log("🗺️ Adding/updating tiles AFTER geostructs with URL:", tileUrl);
