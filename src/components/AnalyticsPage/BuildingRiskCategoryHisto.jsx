@@ -46,7 +46,7 @@ export default function BuildingRiskCategoryHisto({
             </BarChart>
           </ResponsiveContainer>
         ) : (
-          <p className="text-gray-500 text-sm">Загрузка данных...</p>
+          <p className="text-gray-500 text-sm">Нет данных для отображения</p>
         )}
       </div>
     </div>
