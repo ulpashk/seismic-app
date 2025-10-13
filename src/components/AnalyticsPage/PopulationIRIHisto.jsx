@@ -13,13 +13,6 @@ import {
 } from "recharts"
 
 export default function PopulationIRIHisto({ chartData }) {
-  // Маппинг категорий IRI → Цвета
-  const iriColors = {
-    "A: высокая готовность": "#22c55e", // зелёный
-    "B: средняя готовность": "#eab308", // жёлтый
-    "C: низкая готовность": "#f97316", // оранжевый
-    "D: критическая готовность": "#ef4444", // красный (если появится)
-  }
 
   // Преобразуем данные в нужный формат для Recharts
   const formattedData = chartData?.map((item) => ({

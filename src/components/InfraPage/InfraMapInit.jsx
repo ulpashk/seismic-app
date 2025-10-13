@@ -85,11 +85,12 @@ const enginLegend = [
 ];
 
 const readinessLegend = [
-  { label: "IRI < 0.2", color: "#e0f2fe", text: "Низкий" },
-  { label: "0.2 – 0.4", color: "#7dd3fc", text: "Средне-низкий" },
-  { label: "0.4 – 0.6", color: "#3b82f6", text: "Средний" },
-  { label: "0.6 – 0.8", color: "#1d4ed8", text: "Средне-высокий" },
-  { label: "≥ 0.8", color: "#0c143d", text: "Высокий" },
+  { label: "IRI < 0.33", color: "#e0f2fe", text: "Низкая готовность" },
+  // { label: "0.2 – 0.4", color: "#7dd3fc", text: "Средне-низкий" },
+  { label: "0.33 – 0.66", color: "#3b82f6", text: "Средняя готовность" },
+  // { label: "0.6 – 0.8", color: "#1d4ed8", text: "Средне-высокий" },
+  // { label: "≥ 0.8", color: "#0c143d", text: "Высокая готовность" },
+  { label: "> 0.6", color: "#0c143d", text: "Высокая готовность" },
 ];
 
 const buildingLegend = [
@@ -111,11 +112,12 @@ export default function InfraMap({
   selectedDistrict,
   enginNodes,
   socialCategories, 
-  buildingCategories
+  buildingCategories, 
+  setActiveLayer,
+  activeLayer
 }) {
   const mapContainer = useRef(null)
   const map = useRef(null)
-  const [activeLayer, setActiveLayer] = useState("building")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [maplibreLoaded, setMaplibreLoaded] = useState(false)

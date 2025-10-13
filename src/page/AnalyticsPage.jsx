@@ -9,13 +9,17 @@ import PopulationCriticalHisto from "../components/AnalyticsPage/PopulationCriti
 
 export default function AnalyticPage() {
   const [totalBuildings, setTotalBuildings] = useState(0)
-  const [infraSummary, setInfraSummary] = useState({});
   const [districtAverages, setDistrictAverages] = useState({});
   const [totalBuildingsRisk, setTotalBuildingsRisk] = useState(1);
   const [emergencyBuildings, setEmergencyBuildings] = useState(0);
   const [seismicEvalCount, setSeismicEvalCount] = useState(0);
   const [a1Count, setA1Count] = useState(0);
   const [selectedDistrict, setSelectedDistrict] = useState("Все районы");
+  const [districtRisk, setDistrictRisk] = useState({});
+  const [buildingRiskdata, setBuildingRiskdata] = useState([])
+  const [chartData, setChartData] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const districts = [
     "Все районы",
     "Алатауский",
@@ -31,80 +35,87 @@ export default function AnalyticPage() {
   useEffect(() => {
     async function fetchData() {
       try {
+        // ✅ Base URLs
+        const baseSafetyUrl = "https://admin.smartalmaty.kz/api/v1/chs/buildings-seismic-safety/"
+        const baseInfraUrl = "https://admin.smartalmaty.kz/api/v1/address/clickhouse/infra-readiness/"
+        const riskUrl = "https://admin.smartalmaty.kz/api/v1/address/clickhouse/geo-risk/stats/"
 
-        const [safetyRes, infraRes] = await Promise.all([
-          fetch("https://admin.smartalmaty.kz/api/v1/chs/buildings-seismic-safety/?limit=10"),
-          fetch("https://admin.smartalmaty.kz/api/v1/address/clickhouse/infra-readiness/?page_size=10000"),
-        ]);
+        // ✅ Determine full district name (with "район"), unless it's "Все районы"
+        const isAllDistricts = !selectedDistrict || selectedDistrict === "Все районы"
+        const districtFull = !isAllDistricts ? `${selectedDistrict} район` : null
 
-        if (!safetyRes.ok || !infraRes.ok) {
-          throw new Error("Ошибка при загрузке данных");
+        // ✅ Build URLs dynamically
+        const safetyUrl = !isAllDistricts
+          ? `${baseSafetyUrl}?district=${encodeURIComponent(districtFull)}&limit=10`
+          : `${baseSafetyUrl}?limit=10`
+
+        const infraUrl = !isAllDistricts
+          ? `${baseInfraUrl}?district=${encodeURIComponent(districtFull)}&page_size=10000`
+          : `${baseInfraUrl}?page_size=10000`
+
+        // --- Fetch all three in parallel ---
+        const [safetyRes, infraRes, riskRes] = await Promise.all([
+          fetch(safetyUrl),
+          fetch(infraUrl),
+          fetch(riskUrl),
+        ])
+
+        if (!safetyRes.ok || !infraRes.ok || !riskRes.ok) {
+          throw new Error("Ошибка при загрузке данных")
         }
 
-        const safetyJson = await safetyRes.json();
-        const infraJson = await infraRes.json();
+        const [safetyJson, infraJson, riskJson] = await Promise.all([
+          safetyRes.json(),
+          infraRes.json(),
+          riskRes.json(),
+        ])
 
-        // Save first API
-        setTotalBuildings(safetyJson.count);
-        setEmergencyBuildings(safetyJson.emergency_buildings_count);
-        setSeismicEvalCount(safetyJson.seismic_eval_count);
+        // --- Set seismic safety stats ---
+        setTotalBuildings(safetyJson.count)
+        setEmergencyBuildings(safetyJson.emergency_buildings_count)
+        setSeismicEvalCount(safetyJson.seismic_eval_count)
 
-        // Process infra-readiness data
-        const grouped = (infraJson.features || []).reduce((acc, feature) => {
-        const props = feature.properties || {};
-        const key = props.IRI_cat || "Неизвестно";
-
-        if (!acc[key]) {
-            acc[key] = { cnt_ddo: 0, cnt_health: 0, cnt_pppn: 0, cnt_school: 0, bldg_count: 0, gri_pop_sum: 0 };
-        }
-
-        acc[key].cnt_ddo += props.cnt_ddo || 0;
-        acc[key].cnt_health += props.cnt_health || 0;
-        acc[key].cnt_pppn += props.cnt_pppn || 0;
-        acc[key].cnt_school += props.cnt_school || 0;
-        acc[key].bldg_count += props.bldg_count || 0;
-        acc[key].gri_pop_sum += Number(props.gri_pop_sum) || 0;
-
-        return acc;
-        }, {});
-
-        setInfraSummary(grouped);
-
+        // --- Compute averages for readiness ---
         const districtGroups = (infraJson.features || []).reduce((acc, feature) => {
-          const props = feature.properties || {};
-          const district = props.district_name || "Неизвестный район";
-          const iri = Number(props.IRI);
-
+          const props = feature.properties || {}
+          const district = props.district_name || "Неизвестный район"
+          const iri = Number(props.IRI)
           if (!acc[district]) {
-            acc[district] = { sum: 0, count: 0 };
+            acc[district] = { sum: 0, count: 0 }
           }
-
           if (!isNaN(iri)) {
-            acc[district].sum += iri;
-            acc[district].count += 1;
+            acc[district].sum += iri
+            acc[district].count += 1
           }
-
-          return acc;
-        }, {});
-
+          return acc
+        }, {})
         const averages = Object.entries(districtGroups).reduce((acc, [district, { sum, count }]) => {
-          acc[district] = count > 0 ? sum / count : 0;
-          return acc;
-        }, {});
+          acc[district] = count > 0 ? sum / count : 0
+          return acc
+        }, {})
+        setDistrictAverages(averages)
 
-        setDistrictAverages(averages);
+        // --- Parse geo-risk data ---
+        const riskMap = {}
+        riskJson.forEach(item => {
+          riskMap[item.district] = item.avg_gri
+        })
+
+        // ✅ Filter risk data locally if a specific district is selected
+        if (!isAllDistricts) {
+          const filteredValue = riskMap[districtFull]
+          setDistrictRisk({ [districtFull]: filteredValue ?? 0 })
+        } else {
+          setDistrictRisk(riskMap)
+        }
 
       } catch (err) {
-        console.error("Error fetching data:", err.message);
+        console.error("Error fetching data:", err.message)
       }
     }
 
-    fetchData();
-  }, []);
-
-  const [chartData, setChartData] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+    fetchData()
+  }, [selectedDistrict])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -116,7 +127,7 @@ export default function AnalyticPage() {
         let url =
           "https://admin.smartalmaty.kz/api/v1/address/clickhouse/infra-readiness/stat-by-iri-cat/"
         if (selectedDistrict && selectedDistrict !== "Все районы") {
-          const encodedDistrict = encodeURIComponent(selectedDistrict)
+          const encodedDistrict = encodeURIComponent(`${selectedDistrict} район`)
           url += `?district=${encodedDistrict}`
         }
 
@@ -135,6 +146,39 @@ export default function AnalyticPage() {
 
     fetchData()
   }, [selectedDistrict])
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        let url = "https://admin.smartalmaty.kz/api/v1/address/postgis/buildings-risk/count-by-category/"
+        if (selectedDistrict && selectedDistrict!=="Все районы") {
+          const districtParam = encodeURIComponent(`${selectedDistrict} район`)
+          url += `?district=${districtParam}`
+        }
+
+        const response = await fetch(url)
+        const json = await response.json()
+
+        const processed = json.results.map(item => ({
+          category: item.group,
+          count: item.count
+        }))
+
+        setTotalBuildingsRisk(json.count)
+        setBuildingRiskdata(processed)
+
+        const a1 = json.results.find(item =>
+          item.group.toLowerCase().includes("аварийное")
+        )
+        if (a1) setA1Count(a1.count)
+
+      } catch (error) {
+        console.error("Error fetching histogram data:", error)
+      }
+    }
+
+    fetchData()
+  }, [selectedDistrict, setA1Count, setTotalBuildingsRisk])
 
   return (
     <div className="flex-1 overflow-y-auto bg-gray-50">
@@ -166,18 +210,15 @@ export default function AnalyticPage() {
               totalBuildingsRisk={totalBuildingsRisk}
             />
         </div>
-        {/* Buildings Gauge */}
 
         {/* Seismic Resistance Levels */}
         <BuildingRiskCategoryHisto
-          setTotalBuildingsRisk={setTotalBuildingsRisk}
-          setA1Count={setA1Count}
+          data={buildingRiskdata}
         />
 
         {/* Social Objects by IRI Index */}
         <SocialObjectsIRIHisto
           chartData={chartData}
-          selectedDistrict={selectedDistrict}
           loading={loading}
           error={error}
         />
@@ -189,11 +230,14 @@ export default function AnalyticPage() {
 
         {/* District Readiness Table */}
         <DistrictReadinessTable
-            districtAverages={districtAverages}
+          districtAverages={districtAverages}
+          districtRisk={districtRisk}
         />
 
         {/* Population in Critical Zones */}
-        <PopulationCriticalHisto/>
+        <PopulationCriticalHisto
+          selectedDistrict={selectedDistrict}
+        />
       </div>
     </div>
   );

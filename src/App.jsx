@@ -3,18 +3,21 @@ import MainPage from "./page/MainPage";
 import Header from "./components/HeaderNewV";
 import InfraPage from "./page/InfraPage";
 import AnalyticsPage from "./page/AnalyticsPage";
+import { useState } from "react";
+import 'katex/dist/katex.min.css'
 
 function App() {
+  const [activeLayer, setActiveLayer] = useState("building")
   return (
     <Router>
       <div className="relative w-full h-screen overflow-hidden">
         <div className="absolute top-0 left-0 right-0 z-30">
-          <Header />
+          <Header activeLayer={activeLayer}/>
         </div>
 
         <Routes>
           <Route path="/" element={<MainPage />} />
-          <Route path="/infrastructure" element={<InfraPage />} />
+          <Route path="/infrastructure" element={<InfraPage activeLayer={activeLayer} setActiveLayer={setActiveLayer} />} />
           <Route 
             path="/analytics" 
             element={
@@ -26,16 +29,6 @@ function App() {
         </Routes>
       </div>
     </Router>
-    // <Router>
-    //   <div className="min-h-screen bg-gray-50">
-    //     <Header/>
-    //     <Routes>
-    //       <Route path="/" element={<MainPage/>} />
-    //       <Route path="/infrastructure" element={<InfraPage/>} />
-    //       <Route path="/analytics" element={<AnalyticsPage/>} />
-    //     </Routes>
-    //   </div>
-    // </Router>
   );
 }
 

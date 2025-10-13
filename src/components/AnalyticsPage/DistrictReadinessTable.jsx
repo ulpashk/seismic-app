@@ -1,9 +1,10 @@
 import { Info } from "lucide-react"
 
-export default function DistrictReadinessTable({ districtAverages }) {
+export default function DistrictReadinessTable({ districtAverages, districtRisk = {} }) {
   const rows = Object.entries(districtAverages).map(([district, avg]) => ({
     district,
-    avg: avg.toFixed(3),
+    readiness: avg.toFixed(3),
+    risk: districtRisk[district]?.toFixed(3) ?? "—",
   }))
 
   return (
@@ -12,20 +13,22 @@ export default function DistrictReadinessTable({ districtAverages }) {
         <h2 className="text-base font-medium">Уровень готовности по районам</h2>
         <Info className="h-4 w-4 text-gray-400" />
       </div>
-      <div className="p-6 overflow-x-auto">
+      <div className="p-6 overflow-x-auto overflow-y-auto max-h-96">
         {rows.length > 0 ? (
           <table className="min-w-full border border-gray-200 text-sm">
             <thead className="bg-gray-100">
               <tr>
                 <th className="px-4 py-2 text-left border-b">Район</th>
                 <th className="px-4 py-2 text-left border-b">Средний уровень готовности</th>
+                <th className="px-4 py-2 text-left border-b">Средний уровень риска</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((row, i) => (
                 <tr key={i} className="hover:bg-gray-50">
                   <td className="px-4 py-2 border-b">{row.district}</td>
-                  <td className="px-4 py-2 border-b text-gray-600">{row.avg}</td>
+                  <td className="px-4 py-2 border-b text-gray-600">{row.readiness}</td>
+                  <td className="px-4 py-2 border-b text-gray-600">{row.risk}</td>
                 </tr>
               ))}
             </tbody>

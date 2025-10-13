@@ -1,29 +1,53 @@
-export default function Indicators({
-    totalBuildings,
-    a1Count, 
-    emergencyBuildings,
-    seismicEvalCount
-}){
-    const passportBuildings = totalBuildings;
-    const countA1buildings = a1Count;
-    const countEmergencyBuildings = emergencyBuildings;
-    const countSeismicEvalCount = seismicEvalCount;
-    
-    const formatNumber = (num) => num?.toLocaleString("ru-RU");
+"use client"
 
-    return (
-        <div className="grid grid-cols-2 gap-4">
-            {[
-                { number: passportBuildings, label: "Объекты паспортизации" },
-                { number: countSeismicEvalCount, label: "Несейсмостойких зданий" },
-                { number: 621, label: "Высотных зданий в опасных участках" },
-                { number: countEmergencyBuildings, label: "Аварийных зданий" },
-            ].map((stat, i) => (
-                <div key={i} className="text-center rounded-lg border bg-white p-2 shadow-sm">
-                <div className="text-lg font-bold text-blue-600">{formatNumber(stat.number)}</div>
-                <p className="text-xs text-gray-500">{stat.label}</p>
-                </div>
-            ))}
+import { useEffect, useState } from "react"
+
+export default function Indicators({
+  totalBuildings,
+  a1Count, 
+  emergencyBuildings,
+  seismicEvalCount
+}) {
+  const [highRiskBuildings, setHighRiskBuildings] = useState(null)
+
+  useEffect(() => {
+    // Fetch the count for "Высотных зданий в опасных участках"
+    fetch("https://admin.smartalmaty.kz/api/v1/address/postgis/buildings-risk/count-by-cluster-no-high-vul/")
+      .then(res => res.json())
+      .then(data => {
+        if (data?.results?.length > 0) {
+          setHighRiskBuildings(data.results[0].count)
+        }
+      })
+      .catch(err => {
+        console.error("Error fetching high risk building count:", err)
+      })
+  }, [])
+
+  const formatNumber = (num) => num?.toLocaleString("ru-RU")
+
+  const stats = [
+    { number: totalBuildings, label: "Объекты паспортизации" },
+    { number: seismicEvalCount, label: "Несейсмостойких зданий" },
+    { number: highRiskBuildings, label: "Высотных зданий в опасных участках" },
+    { number: emergencyBuildings, label: "Аварийных зданий" },
+  ]
+
+  return (
+    <div className="grid grid-cols-2 gap-4">
+      {stats.map((stat, i) => (
+        <div
+          key={i}
+          className="text-center rounded-lg border bg-white p-2 shadow-sm"
+        >
+          <div className="text-lg font-bold text-blue-600">
+            {stat.number !== null && stat.number !== undefined
+              ? formatNumber(stat.number)
+              : "…"}
+          </div>
+          <p className="text-xs text-gray-500">{stat.label}</p>
         </div>
-    )
+      ))}
+    </div>
+  )
 }

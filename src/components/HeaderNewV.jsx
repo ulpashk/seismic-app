@@ -1,12 +1,13 @@
 "use client"
 
 import { Link, useLocation } from "react-router-dom"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "./ui/dialog"
 import { useState } from "react"
 import GRIMethodology from "./Methodology/GRIMethodology"
-import IRIMethodology from "./Methodology/IRIMethodology"
+import BuildingRiskMethodology from "./Methodology/BuildingRiskMethodology"
+import InfraReadinessMethodology from "./Methodology/InfraReadinessMethodology"
 
-export default function Header() {
+export default function Header({activeLayer}) {
   const location = useLocation()
   const [isMethodologyOpen, setIsMethodologyOpen] = useState(false)
 
@@ -16,13 +17,20 @@ export default function Header() {
     { id: "analytics", label: "Аналитика", href: "/analytics" },
   ]
 
-  const getMethodologyContent = () => {
+  function getMethodologyContent() {
     if (location.pathname === "/") {
       return <GRIMethodology />
-    } else if (location.pathname === "/infrastructure") {
-      return <IRIMethodology />
     }
-    return null
+
+    if (location.pathname === "/infrastructure") {
+      if (activeLayer === "building") {
+        return <BuildingRiskMethodology />
+      } else if (activeLayer === "readiness") {
+        return <InfraReadinessMethodology />
+      }
+    }
+
+    return <p className="text-gray-500 p-4">Методология недоступна для текущего контекста.</p>
   }
 
   const getHeaderContent = () => {
@@ -68,10 +76,17 @@ export default function Header() {
 
       <Dialog open={isMethodologyOpen} onOpenChange={setIsMethodologyOpen}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader className="sticky top-0 bg-white shadow-sm">
+          <DialogHeader className="sticky top-0 bg-white shadow-sm z-50">
             <DialogTitle className="text-2xl">
-              {location.pathname === "/" ? "Методология GRI" : "Методология IRI"}
+              {location.pathname === "/"
+                ? "Методология расчёта Geo-Risk Index (GRI)"
+                : location.pathname === "/infrastructure" && activeLayer === "building"
+                ? "Методология расчёта индекса сейсмоустойчивости зданий (SRI)"
+                : location.pathname === "/infrastructure" && activeLayer === "readiness"
+                ? "Методология расчёта Infrastructure Readiness Index (IRI)"
+                : "Методология"}
             </DialogTitle>
+            <DialogClose onOpenChange={setIsMethodologyOpen} />
           </DialogHeader>
           <div className="mt-4">{getMethodologyContent()}</div>
         </DialogContent>

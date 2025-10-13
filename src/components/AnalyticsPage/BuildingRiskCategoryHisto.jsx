@@ -6,38 +6,10 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList
 } from "recharts"
 
-export default function BuildingRiskCategoryHisto({ setTotalBuildingsRisk, setA1Count }) {
-  const [data, setData] = useState([])
-
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const response = await fetch(
-          "https://admin.smartalmaty.kz/api/v1/address/postgis/buildings-risk/count-by-category/"
-        )
-        const json = await response.json()
-
-        // ✅ Map API response to match chart expectations
-        const processed = json.results.map(item => ({
-          category: item.group,
-          count: item.count
-        }))
-
-        setTotalBuildingsRisk(json.count)
-        setData(processed)
-
-        // Optional: if you ever need a specific category
-        const a1 = json.results.find(item =>
-          item.group.toLowerCase().includes("аварийное")
-        )
-        if (a1) setA1Count(a1.count)
-
-      } catch (error) {
-        console.error("Error fetching histogram data:", error)
-      }
-    }
-    fetchData()
-  }, [setA1Count, setTotalBuildingsRisk])
+export default function BuildingRiskCategoryHisto({
+  data,
+}) {
+  
 
   return (
     <div className="rounded-lg border bg-white shadow-sm">
@@ -53,13 +25,6 @@ export default function BuildingRiskCategoryHisto({ setTotalBuildingsRisk, setA1
               data={data}
               margin={{ top: 20, right: 20, left: 0, bottom: 40 }}
             >
-              {/* <XAxis
-                dataKey="category"
-                interval={0}
-                textAnchor="middle"
-                tick={{ fontSize: 11, wordBreak: "break-word", whiteSpace: "normal" }}
-                height={80}
-              /> */}
               <XAxis
                 dataKey="category"
                 angle={-25}

@@ -25,10 +25,10 @@ export function DialogTitle({ children, className = "" }) {
   return <h2 className={`text-xl font-semibold ${className}`}>{children}</h2>
 }
 
-export function DialogClose({ onClose }) {
+export function DialogClose({ onOpenChange }) {
   return (
     <button
-      onClick={onClose}
+      onClick={() => onOpenChange(false)}
       className="absolute right-4 top-4 rounded-sm opacity-70 hover:opacity-100 transition-opacity"
     >
       <X className="h-5 w-5" />

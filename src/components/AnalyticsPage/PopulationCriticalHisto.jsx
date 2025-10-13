@@ -12,23 +12,13 @@ import {
   LabelList,
 } from "recharts"
 
-export default function PopulationCriticalHisto() {
+export default function PopulationCriticalHisto({ selectedDistrict }) {
   const [districtData, setDistrictData] = useState([])
-  
-  // Color palette for different bars
+
   const colors = [
-    "#ef4444", // red
-    "#f97316", // orange
-    "#f59e0b", // amber
-    "#84cc16", // lime
-    "#22c55e", // green
-    "#14b8a6", // teal
-    "#06b6d4", // cyan
-    "#3b82f6", // blue
-    "#6366f1", // indigo
-    "#8b5cf6", // violet
-    "#a855f7", // purple
-    "#ec4899", // pink
+    "#ef4444", "#f97316", "#f59e0b", "#84cc16",
+    "#22c55e", "#14b8a6", "#06b6d4", "#3b82f6",
+    "#6366f1", "#8b5cf6", "#a855f7", "#ec4899",
   ]
 
   useEffect(() => {
@@ -38,22 +28,28 @@ export default function PopulationCriticalHisto() {
           "https://admin.smartalmaty.kz/api/v1/address/postgis/geo-risk/sum-by-district/"
         )
         const json = await res.json()
-        
-        // Filter out "БКАД За пределами города" and districts with sum = 0
-        const filtered = json.filter(
-          d => d.district !== "БКАД За пределами города" && d.sum > 0
+
+        // Filter out "БКАД За пределами города" and zero-sum
+        let filtered = json.filter(
+          (d) => d.district !== "БКАД За пределами города" && d.sum > 0
         )
-        
+
+        // Client-side filter by selected district (if not "Все районы")
+        if (selectedDistrict && selectedDistrict !== "Все районы") {
+          filtered = filtered.filter(
+            (d) => d.district === `${selectedDistrict} район`
+          )
+        }
+
         setDistrictData(filtered)
       } catch (error) {
         console.error("Failed to fetch data:", error)
       }
     }
-    
-    fetchData()
-  }, [])
 
-  // Prepare chart data with rotating colors
+    fetchData()
+  }, [selectedDistrict])
+
   const chartData = districtData.map((d, index) => ({
     district: d.district,
     sum: d.sum,
@@ -84,12 +80,12 @@ export default function PopulationCriticalHisto() {
                 tick={{ fontSize: 10 }}
               />
               <YAxis tick={false} axisLine={false} />
-              <Tooltip 
-                formatter={(value) => value.toLocaleString()} 
-                contentStyle={{ 
-                  backgroundColor: 'white', 
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '6px'
+              <Tooltip
+                formatter={(value) => value.toLocaleString()}
+                contentStyle={{
+                  backgroundColor: "white",
+                  border: "1px solid #e5e7eb",
+                  borderRadius: "6px",
                 }}
               />
               <Bar dataKey="sum" name="Население (чел.)" minPointSize={5}>

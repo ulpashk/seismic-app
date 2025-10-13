@@ -13,7 +13,7 @@ import {
   LabelList,
 } from "recharts"
 
-export default function SocialObjectsIRIHisto({ chartData, selectedDistrict, loading, error }) {
+export default function SocialObjectsIRIHisto({ chartData, loading, error }) {
 
   // 🧠 Преобразуем данные под Recharts
   const transformed = (chartData || []).map(item => ({
@@ -21,11 +21,12 @@ export default function SocialObjectsIRIHisto({ chartData, selectedDistrict, loa
     cnt_ddo: item.total_cnt_ddo || 0,
     cnt_health: item.total_cnt_health || 0,
     cnt_pppn: item.total_cnt_pppn || 0,
-    cnt_school: 0, // нет в API
+    cnt_school: item.total_cnt_school || 0, // нет в API
     total:
       (item.total_cnt_ddo || 0) +
       (item.total_cnt_health || 0) +
-      (item.total_cnt_pppn || 0),
+      (item.total_cnt_pppn || 0) +
+      (item.total_cnt_school || 0),
   }))
 
   // Сортируем по IRI: A → B → C → D
@@ -40,7 +41,6 @@ export default function SocialObjectsIRIHisto({ chartData, selectedDistrict, loa
       <div className="flex items-center justify-between border-b p-4">
         <h2 className="text-base font-medium">
           Соц. объекты по индексу IRI
-          {selectedDistrict ? ` — ${selectedDistrict}` : ""}
         </h2>
         <Info className="h-4 w-4 text-gray-400" />
       </div>

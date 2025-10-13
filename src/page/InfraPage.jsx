@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import InfraMap from "../components/InfraPage/InfraMapInit";
 import InfraFilter from "../components/InfraPage/InfraFilter";
 
-export default function InfraPage() {
+export default function InfraPage({activeLayer, setActiveLayer}) {
     
   const [enginNodes, setEnginNodes] = useState({
     "Канализация": false,
@@ -37,49 +37,24 @@ export default function InfraPage() {
             enginNodes={enginNodes}
             socialCategories={socialCategories}
             buildingCategories={buildingCategories}
+            activeLayer={activeLayer}
+            setActiveLayer={setActiveLayer}
           />
 
-            {/* Floating Filter Panel */}
-            <div className="absolute top-[80px] left-4 z-20 w-80">
-              <InfraFilter
-                setEnginNodes={setEnginNodes}
-                setSocialCategories={setSocialCategories}
-                setBuildingCategories={setBuildingCategories}
-                setSelectedDistrict={setSelectedDistrict}
-                setDistrictDropdownOpen={setDistrictDropdownOpen}
-                districtDropdownOpen={districtDropdownOpen}
-                selectedDistrict={selectedDistrict}
-                enginNodes={enginNodes}
-                socialCategories={socialCategories}
-                buildingCategories={buildingCategories}
-              />
-            </div>
+          <div className="absolute top-[80px] left-4 z-20 w-80">
+            <InfraFilter
+              setEnginNodes={setEnginNodes}
+              setSocialCategories={setSocialCategories}
+              setBuildingCategories={setBuildingCategories}
+              setSelectedDistrict={setSelectedDistrict}
+              setDistrictDropdownOpen={setDistrictDropdownOpen}
+              districtDropdownOpen={districtDropdownOpen}
+              selectedDistrict={selectedDistrict}
+              enginNodes={enginNodes}
+              socialCategories={socialCategories}
+              buildingCategories={buildingCategories}
+            />
+          </div>
         </div>
-        // <div className="grid grid-cols-6 p-4">
-        //     <div className="p-4">
-        //         <InfraFilter
-        //             setEnginNodes={setEnginNodes}
-        //             setSocialCategories={setSocialCategories}
-        //             setBuildingCategories={setBuildingCategories}
-        //             setSelectedDistrict={setSelectedDistrict}
-        //             setDistrictDropdownOpen={setDistrictDropdownOpen}
-        //             districtDropdownOpen={districtDropdownOpen}
-        //             selectedDistrict={selectedDistrict}
-        //             enginNodes={enginNodes}
-        //             socialCategories={socialCategories}
-        //             buildingCategories={buildingCategories}
-        //         />
-        //     </div>
-        //     <div className="col-span-5">
-        //         <div className="p-4 pb-0">
-        //             <InfraMap  
-        //                 selectedDistrict={selectedDistrict}
-        //                 enginNodes={enginNodes}
-        //                 socialCategories={socialCategories}
-        //                 buildingCategories={buildingCategories}
-        //             />
-        //         </div>
-        //     </div>
-        // </div>
     )
 }
