@@ -38,14 +38,14 @@ export default function Indicators({
       {stats.map((stat, i) => (
         <div
           key={i}
-          className="text-center rounded-lg border bg-white p-2 shadow-sm"
+          className="text-center rounded-xl border border-gray-200 bg-gradient-to-br from-white to-gray-50 p-4 shadow-sm hover:shadow-md transition-shadow"
         >
-          <div className="text-lg font-bold text-blue-600">
+          <div className="text-2xl font-bold text-blue-600 mb-1">
             {stat.number !== null && stat.number !== undefined
               ? formatNumber(stat.number)
               : "…"}
           </div>
-          <p className="text-xs text-gray-500">{stat.label}</p>
+          <p className="text-xs font-medium text-gray-600">{stat.label}</p>
         </div>
       ))}
     </div>

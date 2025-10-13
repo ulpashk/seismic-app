@@ -23,10 +23,10 @@ export default function PopulationIRIHisto({ chartData }) {
   })) || []
 
   return (
-    <div className="rounded-lg border bg-white shadow-sm">
-      <div className="flex items-center justify-between border-b p-4">
-        <h2 className="text-base font-medium">Население по индексам готовности IRI</h2>
-        <Info className="h-4 w-4 text-gray-400" />
+    <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 bg-gradient-to-r from-green-50 to-emerald-50">
+        <h2 className="text-base font-semibold text-gray-900">Население по индексам готовности IRI</h2>
+        <Info className="h-5 w-5 text-green-600" />
       </div>
 
       <div className="p-6">
