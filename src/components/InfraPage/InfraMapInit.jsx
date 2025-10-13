@@ -521,7 +521,7 @@ export default function InfraMap({
 
     // 🔹 Highrise filter
     if (buildingCategories.highrise) {
-      filters.push(["==", ["get", "is_highrise_in_ploadLayeroly"], "True"]);
+      filters.push(["==", ["get", "is_highrise_in_poly"], "True"]);
     }
 
     // ✅ Apply filter dynamically
