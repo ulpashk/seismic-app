@@ -86,10 +86,7 @@ const enginLegend = [
 
 const readinessLegend = [
   { label: "IRI < 0.33", color: "#e0f2fe", text: "Низкая готовность" },
-  // { label: "0.2 – 0.4", color: "#7dd3fc", text: "Средне-низкий" },
   { label: "0.33 – 0.66", color: "#3b82f6", text: "Средняя готовность" },
-  // { label: "0.6 – 0.8", color: "#1d4ed8", text: "Средне-высокий" },
-  // { label: "≥ 0.8", color: "#0c143d", text: "Высокая готовность" },
   { label: "> 0.6", color: "#0c143d", text: "Высокая готовность" },
 ];
 
@@ -124,7 +121,7 @@ export default function InfraMap({
   const API_KEY = "9zZ4lJvufSPFPoOGi6yZ"
   const overlayRef = useRef(null);
 
-  // 🔹 Build district query string
+
   const buildQuery = () => {
     const params = [];
     if (
@@ -141,7 +138,6 @@ export default function InfraMap({
     return params.length ? `?${params.join("&")}` : "";
   };
 
-// mapp 
   useEffect(() => {
     // Load MapLibre GL CSS
     const cssLink = document.createElement("link")
@@ -161,88 +157,6 @@ export default function InfraMap({
       if (script.parentNode) script.parentNode.removeChild(script)
     }
   }, [])
-
-  // const buildRepgisUrl = () => {
-  //   const base = urls.repgis
-  //   const selected = Object.entries(enginNodes)
-  //     .filter(([_, enabled]) => enabled)
-  //     .map(([name]) => name) // тут уже русские названия
-
-  //   if (selected.length === 0) return base
-  //   return `${base}&cat_name=${selected.join(",")}`
-  // }
-
-  // useEffect(() => {
-  //   if (!overlayRef.current || !map.current) return;
-
-  //   const updateRepgisLayer = async () => {
-  //     if (!window.cachedData?.repgis_full) {
-  //       const res = await fetch(urls.repgis);
-  //       const data = await res.json();
-  //       window.cachedData = window.cachedData || {};
-  //       window.cachedData.repgis_full = data.features
-  //         ? data
-  //         : {
-  //             type: "FeatureCollection",
-  //             features: (data.results || []).map(item => ({
-  //               type: "Feature",
-  //               geometry: item.geometry,
-  //               properties: item,
-  //             })),
-  //           };
-  //     }
-
-  //     const fullGeojson = window.cachedData.repgis_full;
-
-  //     const selectedCategories = Object.entries(enginNodes)
-  //       .filter(([, enabled]) => enabled)
-  //       .map(([name]) => name);
-
-  //     // Filter main polygons/lines
-  //     const filteredFeatures = fullGeojson.features.filter(f =>
-  //       selectedCategories.includes(f.properties.cat_name)
-  //     );
-
-  //     // ⬇️ Add marker_geojson points from polygons
-  //     const markerPoints = filteredFeatures
-  //   .filter(f => f.properties.marker_geojson)
-  //   .map(f => {
-  //     let markerGeom = f.properties.marker_geojson;
-
-  //     // 🧠 Handle both JSON string or already-parsed object
-  //     if (typeof markerGeom === "string") {
-  //       try {
-  //         markerGeom = JSON.parse(markerGeom);
-  //       } catch (e) {
-  //         console.warn("Invalid marker_geojson for feature:", f.properties.id);
-  //         return null;
-  //       }
-  //     }
-
-  //     // Validate geometry type
-  //     if (!markerGeom || markerGeom.type !== "Point") return null;
-
-  //     return {
-  //       type: "Feature",
-  //       geometry: markerGeom,
-  //       properties: f.properties,
-  //     };
-  //   })
-  //   .filter(Boolean);
-
-  //     // Merge all into one dataset
-  //     const mergedFeatures = [...filteredFeatures, ...markerPoints];
-
-  //     const repgisLayer = new RepgisIconLayer({
-  //       id: "repgis-layer",
-  //       data: mergedFeatures,
-  //     });
-
-  //     overlayRef.current.setProps({ layers: [repgisLayer] });
-  //   };
-
-  //   updateRepgisLayer();
-  // }, [enginNodes]);
 
   const loadBuildingLayer = () => {
     if (!map.current) return
@@ -286,33 +200,11 @@ export default function InfraMap({
     else {
       map.current.setLayoutProperty("building-fill", "visibility", "visible");
     }
-
-    //  // ✅ Build filters
-    // let filters = ["all"];
-
-    // // 🔹 District filter
-    // if (selectedDistrict.length > 0 && !selectedDistrict.includes("Все районы")) {
-    //   filters.push([
-    //     "in",
-    //     ["get", "district"],
-    //     ["literal", selectedDistrict],
-    //   ]);
-    // }
-
-    // // 🔹 Building category filters
-    // // const catFilters = [];
-    // if (buildingCategories.highrise) {
-    //   filters.push(["==", ["get", "is_highrise_in_poly"], "True"]);
-    // }
-
-    // // ✅ Apply combined filter
-    // map.current.setFilter("building-fill", filters);
   }
 
   useEffect(() => {
     if (!map.current) return;
 
-    // 🔹 Hide layer if none selected
     if (!buildingCategories.seismicSafety && !buildingCategories.emergency && !buildingCategories.seismic) {
       if (map.current.getLayer("seismic-safety-fill")) {
         map.current.setLayoutProperty("seismic-safety-fill", "visibility", "none");
@@ -403,6 +295,23 @@ export default function InfraMap({
       });
     } else {
       map.current.setPaintProperty("seismic-safety-fill", "fill-color", fillColor);
+    }
+
+    // 🔹 Add or update point layer for visibility
+    if (!map.current.getLayer("seismic-safety-points")) {
+        map.current.addLayer({
+            id: "seismic-safety-points",
+            type: "circle",
+            source: "seismic-safety",
+            paint: {
+                "circle-radius": 5,
+                "circle-color": fillColor,
+                "circle-stroke-color": "#ffffff",
+                "circle-stroke-width": 1,
+            },
+        });
+    } else {
+        map.current.setPaintProperty("seismic-safety-points", "circle-color", fillColor);
     }
 
     // 🔹 Apply filters
@@ -689,47 +598,6 @@ export default function InfraMap({
     }
   }
 
-  // useEffect(() => {
-  //   if (!overlayRef.current || !map.current) return;
-
-  //   const fetchData = async () => {
-  //     if (window.cachedData?.social) return window.cachedData.social;
-  //     const res = await fetch(urls.social);
-  //     const data = await res.json();
-  //     const geojson = data.features
-  //       ? data
-  //       : {
-  //           type: "FeatureCollection",
-  //           features: (data.results || []).map((item) => ({
-  //             type: "Feature",
-  //             geometry: item.geometry,
-  //             properties: item,
-  //           })),
-  //         };
-  //     window.cachedData = window.cachedData || {};
-  //     window.cachedData.social = geojson;
-  //     return geojson;
-  //   };
-
-  //   fetchData().then((geojson) => {
-  //     const selected = Object.entries(socialCategories)
-  //       .filter(([_, enabled]) => enabled)
-  //       .map(([key]) => key);
-
-  //     const filtered = selected.length
-  //       ? geojson.features.filter((f) => selected.includes(f.properties.category))
-  //       : [];
-
-  //     const socialLayer = new SocialIconLayer({
-  //       id: "social-layer",
-  //       data: filtered,
-  //     });
-
-  //     overlayRef.current.setProps({ layers: [socialLayer] });
-  //   });
-  // }, [socialCategories]);
-
-  // ADD THIS NEW UNIFIED USEEFFECT
   useEffect(() => {
     if (!overlayRef.current || !map.current) return;
 
