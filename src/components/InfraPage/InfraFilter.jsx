@@ -322,8 +322,8 @@ export default function InfraFilter({
       {/* Cards */}
       <div className="grid grid-cols-2 gap-2">
         {[
-          { number: 1088, label: "Несейсмостойких зданий", color: "text-green-600" },
-          { number: 21539, label: "Объекты паспортизации", color: "text-red-600" },
+          { number: 1088, label: "Несейсмостойких зданий", color: "text-red-600" },
+          { number: 21539, label: "Объекты паспортизации", color: "text-black-600" },
         ].map((stat, i) => (
           <div key={i} className="text-center rounded-lg border bg-white shadow p-2">
             <div className={`text-m font-bold ${stat.color}`}>{formatNumber(stat.number)}</div>
