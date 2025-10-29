@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
-import { ChevronUp, ChevronDown } from "lucide-react"; 
+import { ChevronUp, ChevronDown } from "lucide-react";
 
 export default function GeoRiskFilter({
-  mode, 
+  mode,
   setMode,
   setRiskLevels,
   riskLevels,
@@ -11,7 +11,7 @@ export default function GeoRiskFilter({
   setSelectedDistrict,
   selectedDistrict,
   setDensityLevels,
-  densityLevels
+  densityLevels,
 }) {
   const [cityDropdownOpen, setCityDropdownOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -33,7 +33,7 @@ export default function GeoRiskFilter({
     "Наурызбайский",
     "Турксибский",
   ];
-  
+
   // Initialize districts
   useEffect(() => {
     if (!selectedDistrict || selectedDistrict.length === 0) {
@@ -44,7 +44,9 @@ export default function GeoRiskFilter({
   // ✅ Initialize risk levels to ALL CHECKED on first load
   useEffect(() => {
     // Only set if riskLevels is not already initialized
-    const hasAnyValue = Object.values(riskLevels).some(v => v === true || v === false);
+    const hasAnyValue = Object.values(riskLevels).some(
+      (v) => v === true || v === false
+    );
     if (!hasAnyValue || Object.keys(riskLevels).length === 0) {
       setRiskLevels({
         high: true,
@@ -56,7 +58,9 @@ export default function GeoRiskFilter({
 
   // ✅ Initialize infrastructure categories to ALL CHECKED
   useEffect(() => {
-    const hasAnyValue = Object.values(infrastructureCategories).some(v => v === true || v === false);
+    const hasAnyValue = Object.values(infrastructureCategories).some(
+      (v) => v === true || v === false
+    );
     if (!hasAnyValue || Object.keys(infrastructureCategories).length === 0) {
       setInfrastructureCategories({
         landslides: true,
@@ -65,11 +69,11 @@ export default function GeoRiskFilter({
       });
     }
   }, []);
-  
+
   const toggleSection = (section) => {
     setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
   };
-  
+
   const handleRiskLevelChange = (level) => {
     setRiskLevels((prev) => ({
       ...prev,
@@ -79,7 +83,7 @@ export default function GeoRiskFilter({
 
   // ✅ Added "Select All / Deselect All" for Risk Levels
   const handleRiskSelectAll = () => {
-    const allChecked = Object.values(riskLevels).every(v => v);
+    const allChecked = Object.values(riskLevels).every((v) => v);
     setRiskLevels({
       high: !allChecked,
       medium: !allChecked,
@@ -87,7 +91,7 @@ export default function GeoRiskFilter({
     });
   };
 
-  const handleInfrastructureChange = (category) => { 
+  const handleInfrastructureChange = (category) => {
     setInfrastructureCategories((prev) => ({
       ...prev,
       [category]: !prev[category],
@@ -96,7 +100,7 @@ export default function GeoRiskFilter({
 
   // ✅ Added "Select All / Deselect All" for Infrastructure
   const handleInfrastructureSelectAll = () => {
-    const allChecked = Object.values(infrastructureCategories).every(v => v);
+    const allChecked = Object.values(infrastructureCategories).every((v) => v);
     setInfrastructureCategories({
       landslides: !allChecked,
       tectonicFaults: !allChecked,
@@ -119,7 +123,9 @@ export default function GeoRiskFilter({
 
   // Calculate counts for display
   const riskCheckedCount = Object.values(riskLevels).filter(Boolean).length;
-  const infraCheckedCount = Object.values(infrastructureCategories).filter(Boolean).length;
+  const infraCheckedCount = Object.values(infrastructureCategories).filter(
+    Boolean
+  ).length;
 
   return (
     <>
@@ -205,7 +211,10 @@ export default function GeoRiskFilter({
               onClick={() => toggleSection("risk")}
             >
               <h3 className="font-semibold text-gray-900 text-sm">
-                Уровень риска: <span className="text-gray-500 font-normal">({riskCheckedCount}/3)</span>
+                Уровень риска:{" "}
+                <span className="text-gray-500 font-normal">
+                  ({riskCheckedCount}/3)
+                </span>
               </h3>
               <span className="text-gray-500">
                 {openSections.risk ? "▾" : "▸"}
@@ -218,9 +227,11 @@ export default function GeoRiskFilter({
                   onClick={handleRiskSelectAll}
                   className="w-full text-left text-xs text-blue-600 hover:text-blue-800 mb-1"
                 >
-                  {Object.values(riskLevels).every(v => v) ? "Снять все" : "Выбрать все"}
+                  {Object.values(riskLevels).every((v) => v)
+                    ? "Снять все"
+                    : "Выбрать все"}
                 </button>
-                
+
                 <label className="flex items-center space-x-2 cursor-pointer">
                   <input
                     type="checkbox"
@@ -259,7 +270,10 @@ export default function GeoRiskFilter({
               onClick={() => toggleSection("geostructure")}
             >
               <h3 className="font-semibold text-gray-900 text-sm">
-                Категория геоструктур: <span className="text-gray-500 font-normal">({infraCheckedCount}/3)</span>
+                Категория геоструктур:{" "}
+                <span className="text-gray-500 font-normal">
+                  ({infraCheckedCount}/3)
+                </span>
               </h3>
               <span className="text-gray-500">
                 {openSections.geostructure ? "▾" : "▸"}
@@ -272,7 +286,9 @@ export default function GeoRiskFilter({
                   onClick={handleInfrastructureSelectAll}
                   className="w-full text-left text-xs text-blue-600 hover:text-blue-800 mb-1"
                 >
-                  {Object.values(infrastructureCategories).every(v => v) ? "Снять все" : "Выбрать все"}
+                  {Object.values(infrastructureCategories).every((v) => v)
+                    ? "Снять все"
+                    : "Выбрать все"}
                 </button>
 
                 <label className="flex items-center space-x-2 cursor-pointer">
