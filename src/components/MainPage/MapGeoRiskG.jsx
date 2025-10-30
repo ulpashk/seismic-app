@@ -278,7 +278,11 @@ export default function GeoRiskMapDashboard({
 
     return () => {
       if (mapRef.current) {
-        mapRef.current.remove();
+        try {
+          mapRef.current.remove();
+        } catch (e) {
+          console.warn("Error removing map:", e);
+        }
         mapRef.current = null;
       }
     };
@@ -330,89 +334,130 @@ export default function GeoRiskMapDashboard({
       }
 
       // Add source if it doesn't exist
-      const hasSource = !!map.getSource("geoStruct");
+      let hasSource = false;
+      try {
+        hasSource = !!(map.getSource && map.getSource("geoStruct"));
+      } catch (e) {
+        console.warn("Error checking source:", e);
+      }
       console.log("📦 Source check:", { hasSource });
 
       if (!hasSource) {
-        console.log("➕ Adding geoStruct source");
-        map.addSource("geoStruct", {
-          type: "geojson",
-          data: geoData || { type: "FeatureCollection", features: [] },
-        });
+        try {
+          console.log("➕ Adding geoStruct source");
+          map.addSource("geoStruct", {
+            type: "geojson",
+            data: geoData || { type: "FeatureCollection", features: [] },
+          });
+        } catch (e) {
+          console.warn("Error adding source:", e);
+          return false;
+        }
       }
 
       // Add layers if they don't exist
-      const hasFaultFill = !!map.getLayer("fault-fill");
+      let hasFaultFill = false;
+      try {
+        hasFaultFill = !!(map.getLayer && map.getLayer("fault-fill"));
+      } catch (e) {
+        console.warn("Error checking fault-fill layer:", e);
+      }
       console.log("🔍 Checking fault-fill layer:", hasFaultFill);
 
       if (!hasFaultFill) {
-        console.log("➕ Adding fault-fill layer");
-        map.addLayer({
-          id: "fault-fill",
-          type: "fill",
-          source: "geoStruct",
-          filter: [
-            "all",
-            ["in", ["geometry-type"], ["literal", ["Polygon", "MultiPolygon"]]],
-            ["==", ["get", "category"], "разломы"],
-          ],
-          paint: {
-            "fill-color": "#ff6b35",
-            "fill-opacity": 0.5,
-          },
-        });
+        try {
+          console.log("➕ Adding fault-fill layer");
+          map.addLayer({
+            id: "fault-fill",
+            type: "fill",
+            source: "geoStruct",
+            filter: [
+              "all",
+              [
+                "in",
+                ["geometry-type"],
+                ["literal", ["Polygon", "MultiPolygon"]],
+              ],
+              ["==", ["get", "category"], "разломы"],
+            ],
+            paint: {
+              "fill-color": "#ff6b35",
+              "fill-opacity": 0.5,
+            },
+          });
+        } catch (e) {
+          console.warn("Error adding fault-fill layer:", e);
+        }
       }
 
-      const hasStructLines = !!map.getLayer("struct-lines");
+      let hasStructLines = false;
+      try {
+        hasStructLines = !!(map.getLayer && map.getLayer("struct-lines"));
+      } catch (e) {
+        console.warn("Error checking struct-lines layer:", e);
+      }
       console.log("🔍 Checking struct-lines layer:", hasStructLines);
 
       if (!hasStructLines) {
-        console.log("➕ Adding struct-lines layer");
-        map.addLayer({
-          id: "struct-lines",
-          type: "line",
-          source: "geoStruct",
-          filter: [
-            "in",
-            ["geometry-type"],
-            ["literal", ["LineString", "MultiLineString"]],
-          ],
-          paint: {
-            "line-color": [
-              "match",
-              ["get", "category"],
-              "сель",
-              "#00b4d8",
-              "разломы",
-              "#ff6b35",
-              "оползни",
-              "#ffa500",
-              "#888",
+        try {
+          console.log("➕ Adding struct-lines layer");
+          map.addLayer({
+            id: "struct-lines",
+            type: "line",
+            source: "geoStruct",
+            filter: [
+              "in",
+              ["geometry-type"],
+              ["literal", ["LineString", "MultiLineString"]],
             ],
-            "line-width": 3,
-            "line-opacity": 0.8,
-          },
-        });
+            paint: {
+              "line-color": [
+                "match",
+                ["get", "category"],
+                "сель",
+                "#00b4d8",
+                "разломы",
+                "#ff6b35",
+                "оползни",
+                "#ffa500",
+                "#888",
+              ],
+              "line-width": 3,
+              "line-opacity": 0.8,
+            },
+          });
+        } catch (e) {
+          console.warn("Error adding struct-lines layer:", e);
+        }
       }
 
-      const hasStructPoints = !!map.getLayer("struct-points");
+      let hasStructPoints = false;
+      try {
+        hasStructPoints = !!(map.getLayer && map.getLayer("struct-points"));
+      } catch (e) {
+        console.warn("Error checking struct-points layer:", e);
+      }
       console.log("🔍 Checking struct-points layer:", hasStructPoints);
 
       if (!hasStructPoints) {
-        console.log("➕ Adding struct-points layer");
-        map.addLayer({
-          id: "struct-points",
-          type: "circle",
-          source: "geoStruct",
-          filter: ["==", ["geometry-type"], "Point"],
-          paint: {
-            "circle-radius": 8,
-            "circle-color": "#ffa500",
-            "circle-stroke-width": 2,
-            "circle-stroke-color": "#fff",
-            "circle-opacity": 0.85,
-          },
-        });
+        try {
+          console.log("➕ Adding struct-points layer");
+          map.addLayer({
+            id: "struct-points",
+            type: "circle",
+            source: "geoStruct",
+            filter: ["==", ["geometry-type"], "Point"],
+            paint: {
+              "circle-radius": 8,
+              "circle-color": "#ffa500",
+              "circle-stroke-width": 2,
+              "circle-stroke-color": "#fff",
+              "circle-opacity": 0.85,
+            },
+          });
+        } catch (e) {
+          console.warn("Error adding struct-points layer:", e);
+        }
       }
 
       console.log("🎨 GeoStruct layers added/verified");
@@ -452,21 +497,36 @@ export default function GeoRiskMapDashboard({
       // Ensure layers exist (recreate after style change)
       const layersCreated = addGeoStructLayers(map);
 
-      const src = map.getSource("geoStruct");
+      let src = null;
+      try {
+        src = map.getSource && map.getSource("geoStruct");
+      } catch (e) {
+        console.warn("Error getting geoStruct source:", e);
+      }
+
       if (src) {
         console.log(
           "🗺️ Updating geoStruct data, features:",
           geoData.features?.length
         );
-        src.setData(geoData);
+        try {
+          src.setData(geoData);
+        } catch (e) {
+          console.warn("Error setting data on source:", e);
+          return;
+        }
 
         // Debug: Check layer existence
         ["fault-fill", "struct-lines", "struct-points"].forEach((layerId) => {
-          if (map.getLayer(layerId)) {
-            const visibility = map.getLayoutProperty(layerId, "visibility");
-            console.log(`  Layer ${layerId}: ${visibility || "visible"}`);
-          } else {
-            console.log(`  Layer ${layerId}: NOT FOUND`);
+          try {
+            if (map.getLayer && map.getLayer(layerId)) {
+              const visibility = map.getLayoutProperty(layerId, "visibility");
+              console.log(`  Layer ${layerId}: ${visibility || "visible"}`);
+            } else {
+              console.log(`  Layer ${layerId}: NOT FOUND`);
+            }
+          } catch (e) {
+            console.log(`  Layer ${layerId}: ERROR checking - ${e.message}`);
           }
         });
 
@@ -516,15 +576,17 @@ export default function GeoRiskMapDashboard({
         return;
       }
 
-      // Clean up existing layers/sources
-      if (map.getLayer("geoRisk-fill")) {
-        map.removeLayer("geoRisk-fill");
-      }
-      if (map.getSource("geoRisk")) {
-        map.removeSource("geoRisk");
-      }
-
-      // Add tile source
+      try {
+        // Clean up existing layers/sources with safety checks
+        if (map.getLayer && map.getLayer("geoRisk-fill")) {
+          map.removeLayer("geoRisk-fill");
+        }
+        if (map.getSource && map.getSource("geoRisk")) {
+          map.removeSource("geoRisk");
+        }
+      } catch (e) {
+        console.warn("Error during layer cleanup:", e);
+      } // Add tile source
       map.addSource("geoRisk", {
         type: "vector",
         tiles: [tileUrl],
@@ -624,9 +686,15 @@ export default function GeoRiskMapDashboard({
       }
 
       // Make sure layers exist before applying filters
-      const hasStructLines = !!map.getLayer("struct-lines");
-      const hasStructPoints = !!map.getLayer("struct-points");
-      const hasFaultFill = !!map.getLayer("fault-fill");
+      let hasStructLines, hasStructPoints, hasFaultFill;
+      try {
+        hasStructLines = !!(map.getLayer && map.getLayer("struct-lines"));
+        hasStructPoints = !!(map.getLayer && map.getLayer("struct-points"));
+        hasFaultFill = !!(map.getLayer && map.getLayer("fault-fill"));
+      } catch (e) {
+        console.warn("Error checking layer existence:", e);
+        return;
+      }
 
       console.log("🔍 Layer check:", {
         hasStructLines,
@@ -654,44 +722,56 @@ export default function GeoRiskMapDashboard({
       console.log("📋 Current filter state:", filters.categories);
 
       // Update fault-fill layer (only разломы polygons)
-      if (map.getLayer("fault-fill")) {
-        if (filters.categories.fault) {
-          map.setLayoutProperty("fault-fill", "visibility", "visible");
-        } else {
-          map.setLayoutProperty("fault-fill", "visibility", "none");
+      try {
+        if (map.getLayer && map.getLayer("fault-fill")) {
+          if (filters.categories.fault) {
+            map.setLayoutProperty("fault-fill", "visibility", "visible");
+          } else {
+            map.setLayoutProperty("fault-fill", "visibility", "none");
+          }
         }
+      } catch (e) {
+        console.warn("Error updating fault-fill layer:", e);
       }
 
       // Update struct-lines layer (сель, оползні, разломы lines)
-      if (map.getLayer("struct-lines")) {
-        if (enabledCategories.length > 0) {
-          map.setLayoutProperty("struct-lines", "visibility", "visible");
-          map.setFilter("struct-lines", [
-            "all",
-            [
-              "in",
-              ["geometry-type"],
-              ["literal", ["LineString", "MultiLineString"]],
-            ],
-            ["in", ["get", "category"], ["literal", enabledCategories]],
-          ]);
-        } else {
-          map.setLayoutProperty("struct-lines", "visibility", "none");
+      try {
+        if (map.getLayer && map.getLayer("struct-lines")) {
+          if (enabledCategories.length > 0) {
+            map.setLayoutProperty("struct-lines", "visibility", "visible");
+            map.setFilter("struct-lines", [
+              "all",
+              [
+                "in",
+                ["geometry-type"],
+                ["literal", ["LineString", "MultiLineString"]],
+              ],
+              ["in", ["get", "category"], ["literal", enabledCategories]],
+            ]);
+          } else {
+            map.setLayoutProperty("struct-lines", "visibility", "none");
+          }
         }
+      } catch (e) {
+        console.warn("Error updating struct-lines layer:", e);
       }
 
       // Update struct-points layer (only оползні points)
-      if (map.getLayer("struct-points")) {
-        if (filters.categories.landslide) {
-          map.setLayoutProperty("struct-points", "visibility", "visible");
-          map.setFilter("struct-points", [
-            "all",
-            ["==", ["geometry-type"], "Point"],
-            ["==", ["get", "category"], "оползни"],
-          ]);
-        } else {
-          map.setLayoutProperty("struct-points", "visibility", "none");
+      try {
+        if (map.getLayer && map.getLayer("struct-points")) {
+          if (filters.categories.landslide) {
+            map.setLayoutProperty("struct-points", "visibility", "visible");
+            map.setFilter("struct-points", [
+              "all",
+              ["==", ["geometry-type"], "Point"],
+              ["==", ["get", "category"], "оползни"],
+            ]);
+          } else {
+            map.setLayoutProperty("struct-points", "visibility", "none");
+          }
         }
+      } catch (e) {
+        console.warn("Error updating struct-points layer:", e);
       }
 
       console.log("✅ Filters applied:", {

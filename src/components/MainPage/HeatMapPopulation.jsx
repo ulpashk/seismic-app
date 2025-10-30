@@ -543,8 +543,24 @@ export default function HeatMapPopulation() {
     if (!mapRef.current || !mapLoaded) return;
     const map = mapRef.current;
 
-    const safeRemoveLayer = (id) => map.getLayer(id) && map.removeLayer(id);
-    const safeRemoveSource = (id) => map.getSource(id) && map.removeSource(id);
+    const safeRemoveLayer = (id) => {
+      try {
+        if (map && map.getLayer && map.getLayer(id)) {
+          map.removeLayer(id);
+        }
+      } catch (e) {
+        console.warn(`Failed to remove layer ${id}:`, e);
+      }
+    };
+    const safeRemoveSource = (id) => {
+      try {
+        if (map && map.getSource && map.getSource(id)) {
+          map.removeSource(id);
+        }
+      } catch (e) {
+        console.warn(`Failed to remove source ${id}:`, e);
+      }
+    };
 
     const add = () => {
       if (!map.isStyleLoaded()) {
@@ -699,9 +715,15 @@ export default function HeatMapPopulation() {
     add();
 
     return () => {
-      safeRemoveLayer(POINTS_ID);
-      safeRemoveLayer(HEAT_ID);
-      safeRemoveSource(SOURCE_ID);
+      try {
+        if (mapRef.current) {
+          safeRemoveLayer(POINTS_ID);
+          safeRemoveLayer(HEAT_ID);
+          safeRemoveSource(SOURCE_ID);
+        }
+      } catch (e) {
+        console.warn("Cleanup error in HeatMapPopulation:", e);
+      }
     };
   }, [mapLoaded]);
 
