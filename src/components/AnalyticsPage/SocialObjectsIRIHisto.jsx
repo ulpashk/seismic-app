@@ -1,7 +1,6 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { Info } from "lucide-react"
+import { Info } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -11,12 +10,11 @@ import {
   Legend,
   ResponsiveContainer,
   LabelList,
-} from "recharts"
+} from "recharts";
 
 export default function SocialObjectsIRIHisto({ chartData, loading, error }) {
-
   // 🧠 Преобразуем данные под Recharts
-  const transformed = (chartData || []).map(item => ({
+  const transformed = (chartData || []).map((item) => ({
     iri: item.IRI_cat,
     cnt_ddo: item.total_cnt_ddo || 0,
     cnt_health: item.total_cnt_health || 0,
@@ -27,14 +25,14 @@ export default function SocialObjectsIRIHisto({ chartData, loading, error }) {
       (item.total_cnt_health || 0) +
       (item.total_cnt_pppn || 0) +
       (item.total_cnt_school || 0),
-  }))
+  }));
 
   // Сортируем по IRI: A → B → C → D
-  const order = ["A", "B", "C", "D"]
+  const order = ["A", "B", "C", "D"];
   transformed.sort((a, b) => {
-    const getKey = x => order.findIndex(o => x.iri.startsWith(o))
-    return getKey(a) - getKey(b)
-  })
+    const getKey = (x) => order.findIndex((o) => x.iri.startsWith(o));
+    return getKey(a) - getKey(b);
+  });
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
@@ -70,8 +68,18 @@ export default function SocialObjectsIRIHisto({ chartData, loading, error }) {
               <Tooltip formatter={(value) => value.toLocaleString()} />
               <Legend wrapperStyle={{ fontSize: 12 }} />
 
-              <Bar dataKey="cnt_ddo" stackId="a" fill="#eab308" name="Детские сады" />
-              <Bar dataKey="cnt_health" stackId="a" fill="#dc2626" name="Больницы" />
+              <Bar
+                dataKey="cnt_ddo"
+                stackId="a"
+                fill="#eab308"
+                name="Детские сады"
+              />
+              <Bar
+                dataKey="cnt_health"
+                stackId="a"
+                fill="#dc2626"
+                name="Больницы"
+              />
               <Bar dataKey="cnt_pppn" stackId="a" fill="#16a34a" name="ПППН" />
               <Bar dataKey="cnt_school" stackId="a" fill="#2563eb" name="Школы">
                 <LabelList
@@ -88,5 +96,5 @@ export default function SocialObjectsIRIHisto({ chartData, loading, error }) {
         )}
       </div>
     </div>
-  )
+  );
 }

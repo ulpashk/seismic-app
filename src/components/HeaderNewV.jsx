@@ -13,7 +13,7 @@ import GRIMethodology from "./Methodology/GRIMethodology";
 import BuildingRiskMethodology from "./Methodology/BuildingRiskMethodology";
 import InfraReadinessMethodology from "./Methodology/InfraReadinessMethodology";
 
-export default function Header({ activeLayer }) {
+export default function Header({ activeLayer, mainPageTab, setMainPageTab }) {
   const location = useLocation();
   const [isMethodologyOpen, setIsMethodologyOpen] = useState(false);
 

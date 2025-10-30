@@ -1,9 +1,10 @@
 import { useState } from "react";
 import MapGeoRisk from "../components/MainPage/MapGeoRiskG";
 import MapFilters from "../components/MainPage/MapFilters";
+import HeatMapPopulation from "../components/MainPage/HeatMapPopulation";
 // import GeoRiskFilter from "../components/MainPage/GeoRiskFilter";
 
-export default function MainPage() {
+export default function MainPage({ mainPageTab, setMainPageTab }) {
   // Constants - single source of truth
   const districts = [
     "Алатауский",
@@ -92,42 +93,83 @@ export default function MainPage() {
   const [selectedDistrict] = useState(["Все районы"]);
   const [mode, setMode] = useState("grid");
 
+  // Tab configuration - аналогично InfraPage
+  const tabsConfig = [
+    {
+      key: "geo-risk",
+      name: "Гео-риски",
+    },
+    {
+      key: "heat-map",
+      name: "Тепловая карта населения",
+    },
+  ];
+
   return (
     <div className="relative w-full h-screen">
-      <MapGeoRisk
-        // Constants
-        districts={districts}
-        districtCoordinates={districtCoordinates}
-        riskLabelMap={riskLabelMap}
-        categoryLabelMap={categoryLabelMap}
-        // State
-        filters={filters}
-        setFilters={setFilters}
-        // Filter handlers
-        toggleRiskLevel={toggleRiskLevel}
-        toggleCategory={toggleCategory}
-        selectDistrict={selectDistrict}
-        resetToAllDistricts={resetToAllDistricts}
-        // Legacy props (for backward compatibility)й
-        mode={mode}
-        setMode={setMode}
-        selectedDistrict={selectedDistrict}
-        densityLevels={densityLevels}
-      />
+      {/* Layer Switcher - аналогично InfraPage */}
+      <div className="absolute top-20 left-1/2 -translate-x-1/2 z-10 flex items-center">
+        <div className="flex space-x-2">
+          {tabsConfig.map((tab) => {
+            return (
+              <div key={tab.key}>
+                <div
+                  onClick={() => setMainPageTab(tab.key)}
+                  className={`w-full px-3 py-2 rounded-md text-xs font-medium cursor-pointer transition-colors flex items-center justify-start ${
+                    mainPageTab === tab.key
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  {tab.name}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
-      <MapFilters
-        // Constants
-        districts={districts}
-        riskLabelMap={riskLabelMap}
-        categoryLabelMap={categoryLabelMap}
-        // State
-        filters={filters}
-        // Handlers
-        toggleRiskLevel={toggleRiskLevel}
-        toggleCategory={toggleCategory}
-        selectDistrict={selectDistrict}
-        resetToAllDistricts={resetToAllDistricts}
-      />
+      {/* Tab Content */}
+      {mainPageTab === "geo-risk" ? (
+        <>
+          <MapGeoRisk
+            // Constants
+            districts={districts}
+            districtCoordinates={districtCoordinates}
+            riskLabelMap={riskLabelMap}
+            categoryLabelMap={categoryLabelMap}
+            // State
+            filters={filters}
+            setFilters={setFilters}
+            // Filter handlers
+            toggleRiskLevel={toggleRiskLevel}
+            toggleCategory={toggleCategory}
+            selectDistrict={selectDistrict}
+            resetToAllDistricts={resetToAllDistricts}
+            // Legacy props (for backward compatibility)
+            mode={mode}
+            setMode={setMode}
+            selectedDistrict={selectedDistrict}
+            densityLevels={densityLevels}
+          />
+
+          <MapFilters
+            // Constants
+            districts={districts}
+            riskLabelMap={riskLabelMap}
+            categoryLabelMap={categoryLabelMap}
+            // State
+            filters={filters}
+            // Handlers
+            toggleRiskLevel={toggleRiskLevel}
+            toggleCategory={toggleCategory}
+            selectDistrict={selectDistrict}
+            resetToAllDistricts={resetToAllDistricts}
+          />
+        </>
+      ) : (
+        <HeatMapPopulation />
+      )}
     </div>
   );
 }

@@ -41,23 +41,23 @@ export default function MapFilters({
           <div className="flex-1 overflow-y-auto">
             <div className="space-y-6">
               <div className="space-y-4">
-                <h3 className="text-gray-900 font-semibold mb-3">
+                <h3 className="text-gray-900 font-semibold mb-3 text-sm">
                   Категории инфраструктуры
                 </h3>
                 <div className="space-y-3">
                   {Object.entries(filters.categories).map(([key, enabled]) => (
                     <label
                       key={key}
-                      className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors border border-gray-200"
+                      className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors border border-gray-200"
                     >
                       <input
                         type="checkbox"
                         checked={enabled}
                         onChange={() => toggleCategory(key)}
-                        className="w-5 h-5 rounded accent-blue-500"
+                        className="w-4 h-4 rounded accent-blue-500"
                       />
                       <div className="flex-1">
-                        <div className="text-gray-900 font-medium">
+                        <div className="text-gray-900 font-medium text-sm">
                           {key === "mudflow"
                             ? "Селевые потоки"
                             : key === "landslide"
@@ -69,7 +69,7 @@ export default function MapFilters({
                         </div>
                       </div>
                       <div
-                        className={`w-4 h-4 rounded-full ${
+                        className={`w-3 h-3 rounded-full ${
                           key === "mudflow"
                             ? "bg-blue-400"
                             : key === "landslide"
@@ -83,7 +83,7 @@ export default function MapFilters({
               </div>
               {/* Risk Levels */}
               <div>
-                <h3 className="text-gray-900 font-semibold mb-3 flex items-center gap-2">
+                <h3 className="text-gray-900 font-semibold mb-3 flex items-center gap-2 text-sm">
                   <AlertTriangle className="w-4 h-4 text-red-500" />
                   Уровни риска
                 </h3>
@@ -91,16 +91,16 @@ export default function MapFilters({
                   {Object.entries(filters.riskLevels).map(([key, enabled]) => (
                     <label
                       key={key}
-                      className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors border border-gray-200"
+                      className="flex items-center gap-3 p-2.5 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors border border-gray-200"
                     >
                       <input
                         type="checkbox"
                         checked={enabled}
                         onChange={() => toggleRiskLevel(key)}
-                        className="w-5 h-5 rounded accent-blue-500"
+                        className="w-4 h-4 rounded accent-blue-500"
                       />
                       <span
-                        className={`flex-1 font-medium ${
+                        className={`flex-1 font-medium text-sm ${
                           key === "high"
                             ? "text-red-600"
                             : key === "medium"
@@ -127,7 +127,9 @@ export default function MapFilters({
               {/* Districts */}
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-gray-900 font-semibold">Районы</h3>
+                  <h3 className="text-gray-900 font-semibold text-sm">
+                    Районы
+                  </h3>
                   <button
                     onClick={resetToAllDistricts}
                     className="text-xs text-blue-600 hover:text-blue-700 font-medium px-2 py-1 rounded hover:bg-blue-50 transition-colors"
@@ -142,7 +144,7 @@ export default function MapFilters({
                       <button
                         key={district}
                         onClick={() => selectDistrict(district)}
-                        className={`w-full text-left p-3 rounded-lg transition-colors border ${
+                        className={`w-full text-left p-2.5 rounded-lg transition-colors border ${
                           isSelected
                             ? "bg-blue-50 border-blue-300 text-blue-900"
                             : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"

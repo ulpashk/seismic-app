@@ -1,20 +1,23 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { Info } from "lucide-react"
+import { Info } from "lucide-react";
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList
-} from "recharts"
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  LabelList,
+} from "recharts";
 
-export default function BuildingRiskCategoryHisto({
-  data,
-}) {
-  
-
+export default function BuildingRiskCategoryHisto({ data }) {
   return (
     <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
       <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 bg-gradient-to-r from-red-50 to-orange-50">
-        <h2 className="text-base font-semibold text-gray-900">Здания по уровням сейсмостойкости</h2>
+        <h2 className="text-base font-semibold text-gray-900">
+          Здания по уровням сейсмостойкости
+        </h2>
         <Info className="h-5 w-5 text-red-600" />
       </div>
 
@@ -50,5 +53,5 @@ export default function BuildingRiskCategoryHisto({
         )}
       </div>
     </div>
-  )
+  );
 }

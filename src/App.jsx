@@ -9,16 +9,29 @@ import RecomendPage from "./page/RecomendPage";
 
 function App() {
   const [activeLayer, setActiveLayer] = useState("building");
+  const [mainPageTab, setMainPageTab] = useState("geo-risk");
 
   return (
     <Router>
       <div className="relative w-full h-screen overflow-hidden">
         <div className="absolute top-0 left-0 right-0 z-30">
-          <Header activeLayer={activeLayer} />
+          <Header
+            activeLayer={activeLayer}
+            mainPageTab={mainPageTab}
+            setMainPageTab={setMainPageTab}
+          />
         </div>
 
         <Routes>
-          <Route path="/" element={<MainPage />} />
+          <Route
+            path="/"
+            element={
+              <MainPage
+                mainPageTab={mainPageTab}
+                setMainPageTab={setMainPageTab}
+              />
+            }
+          />
           <Route
             path="/infrastructure"
             element={

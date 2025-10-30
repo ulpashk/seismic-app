@@ -1,17 +1,22 @@
-"use client"
+"use client";
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react";
 import { MapboxOverlay } from "@deck.gl/mapbox";
-import SocialIconLayer from "./map-icons/social-icons"
-import RepgisIconLayer from "./map-icons/repgis-icons"
+import SocialIconLayer from "./map-icons/social-icons";
+import RepgisIconLayer from "./map-icons/repgis-icons";
 
 const urls = {
-  readiness: "https://admin.smartalmaty.kz/api/v1/address/clickhouse/infra-readiness/?page_size=10000",
-  repgis: "https://admin.smartalmaty.kz/api/v1/address/clickhouse/rep-gis-infra/?page_size=10000",
-  social: "https://admin.smartalmaty.kz/api/v1/address/clickhouse/social-objects/?page_size=10000",
-  building: "https://admin.smartalmaty.kz/api/v1/address/clickhouse/building-risk-tile/{z}/{x}/{y}.pbf",
-  seismicSafety: "https://admin.smartalmaty.kz/api/v1/chs/buildings-seismic-safety/?limit=1000",
-}
+  readiness:
+    "https://admin.smartalmaty.kz/api/v1/address/clickhouse/infra-readiness/?page_size=10000",
+  repgis:
+    "https://admin.smartalmaty.kz/api/v1/address/clickhouse/rep-gis-infra/?page_size=10000",
+  social:
+    "https://admin.smartalmaty.kz/api/v1/address/clickhouse/social-objects/?page_size=10000",
+  building:
+    "https://admin.smartalmaty.kz/api/v1/address/clickhouse/building-risk-tile/{z}/{x}/{y}.pbf",
+  seismicSafety:
+    "https://admin.smartalmaty.kz/api/v1/chs/buildings-seismic-safety/?limit=1000",
+};
 
 const layerConfigs = {
   readiness: {
@@ -40,35 +45,43 @@ const layerConfigs = {
     type: "vector",
     sourceLayer: "building_risk", // must match backend
   },
-}
+};
 
 const pointPaintLogic = {
   social: [
     "match",
     ["get", "category"],
-    "school", "#2563eb",  // blue
-    "pppn", "#16a34a",    // green
-    "health", "#dc2626",  // red
-    "ddo", "#eab308",     // yellow
-    /* default */ "#6b7280" // gray
+    "school",
+    "#2563eb", // blue
+    "pppn",
+    "#16a34a", // green
+    "health",
+    "#dc2626", // red
+    "ddo",
+    "#eab308", // yellow
+    /* default */ "#6b7280", // gray
   ],
   readiness: [
     "step",
     ["get", "IRI"],
-    "#e0f2fe",   // lightest blue (IRI < 0.2)
-    0.2, "#7dd3fc", // light blue (0.2–0.4)
-    0.4, "#3b82f6", // medium blue (0.4–0.6)
-    0.6, "#1d4ed8", // deep blue (0.6–0.8)
-    0.8, "#111c55ff"  // darkest blue (>= 0.8)
+    "#e0f2fe", // lightest blue (IRI < 0.2)
+    0.2,
+    "#7dd3fc", // light blue (0.2–0.4)
+    0.4,
+    "#3b82f6", // medium blue (0.4–0.6)
+    0.6,
+    "#1d4ed8", // deep blue (0.6–0.8)
+    0.8,
+    "#111c55ff", // darkest blue (>= 0.8)
   ],
 
   repgis: {
     polygon: "#c7a07fff", // brownish fill
-    line: "#0ea5e9",      // sky blue
-    point: "#9333ea"      // purple
-  }
-}
- 
+    line: "#0ea5e9", // sky blue
+    point: "#9333ea", // purple
+  },
+};
+
 const socialLegend = [
   { label: "Школы", key: "school", color: "#2563eb" },
   { label: "ПППН", key: "pppn", color: "#16a34a" },
@@ -77,11 +90,36 @@ const socialLegend = [
 ];
 
 const enginLegend = [
-  { label: "Канализация", key: "Канализация", color: "#0ea5e9", icon: "/icons/sewer.png" },
-  { label: "Электроснабжение", key: "Электроснабжение", color: "#f97316", icon: "/icons/electricity.png" },
-  { label: "ИКТ инфраструктура города", key: "ИКТ инфраструктура города", color: "#a855f7", icon: "/icons/ict.png" },
-  { label: "Теплоснабжение", key: "Теплоснабжение", color: "#ef4444", icon: "/icons/heat.png" },
-  { label: "Газоснабжение", key: "Газоснабжение", color: "#eab308", icon: "/icons/gas.png" },
+  {
+    label: "Канализация",
+    key: "Канализация",
+    color: "#0ea5e9",
+    icon: "/icons/sewer.png",
+  },
+  {
+    label: "Электроснабжение",
+    key: "Электроснабжение",
+    color: "#f97316",
+    icon: "/icons/electricity.png",
+  },
+  {
+    label: "ИКТ инфраструктура города",
+    key: "ИКТ инфраструктура города",
+    color: "#a855f7",
+    icon: "/icons/ict.png",
+  },
+  {
+    label: "Теплоснабжение",
+    key: "Теплоснабжение",
+    color: "#ef4444",
+    icon: "/icons/heat.png",
+  },
+  {
+    label: "Газоснабжение",
+    key: "Газоснабжение",
+    color: "#eab308",
+    icon: "/icons/gas.png",
+  },
 ];
 
 const readinessLegend = [
@@ -102,25 +140,24 @@ const icons = {
   school: "icons/school.png",
   health: "icons/health.png",
   pppn: "icons/pppn.png",
-  ddo: "icons/ddo.png"
+  ddo: "icons/ddo.png",
 };
 
 export default function InfraMap({
   selectedDistrict,
   enginNodes,
-  socialCategories, 
-  buildingCategories, 
+  socialCategories,
+  buildingCategories,
   setActiveLayer,
-  activeLayer
+  activeLayer,
 }) {
-  const mapContainer = useRef(null)
-  const map = useRef(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
-  const [maplibreLoaded, setMaplibreLoaded] = useState(false)
-  const API_KEY = "9zZ4lJvufSPFPoOGi6yZ"
+  const mapContainer = useRef(null);
+  const map = useRef(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [maplibreLoaded, setMaplibreLoaded] = useState(false);
+  const API_KEY = "9zZ4lJvufSPFPoOGi6yZ";
   const overlayRef = useRef(null);
-
 
   const buildQuery = () => {
     const params = [];
@@ -140,28 +177,28 @@ export default function InfraMap({
 
   useEffect(() => {
     // Load MapLibre GL CSS
-    const cssLink = document.createElement("link")
-    cssLink.rel = "stylesheet"
-    cssLink.href = "https://unpkg.com/maplibre-gl@4.0.2/dist/maplibre-gl.css"
-    document.head.appendChild(cssLink)
+    const cssLink = document.createElement("link");
+    cssLink.rel = "stylesheet";
+    cssLink.href = "https://unpkg.com/maplibre-gl@4.0.2/dist/maplibre-gl.css";
+    document.head.appendChild(cssLink);
 
     // Load MapLibre GL JS
-    const script = document.createElement("script")
-    script.src = "https://unpkg.com/maplibre-gl@4.0.2/dist/maplibre-gl.js"
-    script.onload = () => setMaplibreLoaded(true)
-    script.onerror = () => setError("Failed to load MapLibre GL JS")
-    document.head.appendChild(script)
+    const script = document.createElement("script");
+    script.src = "https://unpkg.com/maplibre-gl@4.0.2/dist/maplibre-gl.js";
+    script.onload = () => setMaplibreLoaded(true);
+    script.onerror = () => setError("Failed to load MapLibre GL JS");
+    document.head.appendChild(script);
 
     return () => {
-      if (cssLink.parentNode) cssLink.parentNode.removeChild(cssLink)
-      if (script.parentNode) script.parentNode.removeChild(script)
-    }
-  }, [])
+      if (cssLink.parentNode) cssLink.parentNode.removeChild(cssLink);
+      if (script.parentNode) script.parentNode.removeChild(script);
+    };
+  }, []);
 
   const loadBuildingLayer = () => {
-    if (!map.current) return
+    if (!map.current) return;
 
-    const config = layerConfigs.building
+    const config = layerConfigs.building;
 
     if (!map.current.getSource("building")) {
       map.current.addSource("building", {
@@ -169,7 +206,7 @@ export default function InfraMap({
         tiles: [urls.building],
         minzoom: 0,
         maxzoom: 14,
-      })
+      });
     }
 
     if (!map.current.getLayer("building-fill")) {
@@ -180,34 +217,46 @@ export default function InfraMap({
         "source-layer": config.sourceLayer,
         paint: {
           "fill-color": [
-          "match",
-          ["get", "SRI_class"],
+            "match",
+            ["get", "SRI_class"],
 
-          "E", "#ED3726",        // зелёный
-          "D", "#ED7626",     // светло-зелёный
-          "C", "#EDDC26",          // лаймовый  // янтарный
-          "B", "#8DE314", // оранжевый
-          "A", "#038009", // красный
+            "E",
+            "#ED3726", // зелёный
+            "D",
+            "#ED7626", // светло-зелёный
+            "C",
+            "#EDDC26", // лаймовый  // янтарный
+            "B",
+            "#8DE314", // оранжевый
+            "A",
+            "#038009", // красный
 
-          /* default */ "#9E9E9E" // серый если не совпало
-        ],
-        "fill-opacity": 0.4,
+            /* default */ "#9E9E9E", // серый если не совпало
+          ],
+          "fill-opacity": 0.4,
           // "fill-color": config.color,
           // "fill-opacity": 0.4,
         },
-      })
-    }
-    else {
+      });
+    } else {
       map.current.setLayoutProperty("building-fill", "visibility", "visible");
     }
-  }
+  };
 
   useEffect(() => {
     if (!map.current) return;
 
-    if (!buildingCategories.seismicSafety && !buildingCategories.emergency && !buildingCategories.seismic) {
+    if (
+      !buildingCategories.seismicSafety &&
+      !buildingCategories.emergency &&
+      !buildingCategories.seismic
+    ) {
       if (map.current.getLayer("seismic-safety-fill")) {
-        map.current.setLayoutProperty("seismic-safety-fill", "visibility", "none");
+        map.current.setLayoutProperty(
+          "seismic-safety-fill",
+          "visibility",
+          "none"
+        );
       }
       return;
     }
@@ -215,7 +264,11 @@ export default function InfraMap({
     // 🔹 Otherwise, load layer and show
     loadSeismicSafetyLayer().then(() => {
       if (map.current.getLayer("seismic-safety-fill")) {
-        map.current.setLayoutProperty("seismic-safety-fill", "visibility", "visible");
+        map.current.setLayoutProperty(
+          "seismic-safety-fill",
+          "visibility",
+          "visible"
+        );
       }
     });
   }, [selectedDistrict, buildingCategories]);
@@ -294,24 +347,32 @@ export default function InfraMap({
         },
       });
     } else {
-      map.current.setPaintProperty("seismic-safety-fill", "fill-color", fillColor);
+      map.current.setPaintProperty(
+        "seismic-safety-fill",
+        "fill-color",
+        fillColor
+      );
     }
 
     // 🔹 Add or update point layer for visibility
     if (!map.current.getLayer("seismic-safety-points")) {
-        map.current.addLayer({
-            id: "seismic-safety-points",
-            type: "circle",
-            source: "seismic-safety",
-            paint: {
-                "circle-radius": 5,
-                "circle-color": fillColor,
-                "circle-stroke-color": "#ffffff",
-                "circle-stroke-width": 1,
-            },
-        });
+      map.current.addLayer({
+        id: "seismic-safety-points",
+        type: "circle",
+        source: "seismic-safety",
+        paint: {
+          "circle-radius": 5,
+          "circle-color": fillColor,
+          "circle-stroke-color": "#ffffff",
+          "circle-stroke-width": 1,
+        },
+      });
     } else {
-        map.current.setPaintProperty("seismic-safety-points", "circle-color", fillColor);
+      map.current.setPaintProperty(
+        "seismic-safety-points",
+        "circle-color",
+        fillColor
+      );
     }
 
     // 🔹 Apply filters
@@ -342,9 +403,9 @@ export default function InfraMap({
   };
 
   useEffect(() => {
-    if (!maplibreLoaded || map.current) return
+    if (!maplibreLoaded || map.current) return;
 
-    const maplibregl = window.maplibregl
+    const maplibregl = window.maplibregl;
 
     map.current = new maplibregl.Map({
       container: mapContainer.current,
@@ -352,12 +413,12 @@ export default function InfraMap({
       center: [76.9129, 43.222],
       zoom: 10,
       pitch: 45,
-      antialias: true 
-    })
+      antialias: true,
+    });
 
     // loadLayer("building")
     map.current.on("load", () => {
-      loadBuildingLayer()
+      loadBuildingLayer();
 
       // loadLayer("repgis");
       // loadLayer("social");
@@ -365,7 +426,7 @@ export default function InfraMap({
       map.current.addSource("openfreemap", {
         url: "https://tiles.openfreemap.org/planet",
         type: "vector",
-      })
+      });
       overlayRef.current = new MapboxOverlay({ interleaved: true });
       map.current.addControl(overlayRef.current);
 
@@ -378,23 +439,36 @@ export default function InfraMap({
         filter: ["!=", ["get", "hide_3d"], true],
         paint: {
           "fill-extrusion-color": [
-            "interpolate", ["linear"], ["get", "render_height"],
-            0, "lightgray",
-            200, "royalblue",
-            400, "lightblue"
+            "interpolate",
+            ["linear"],
+            ["get", "render_height"],
+            0,
+            "lightgray",
+            200,
+            "royalblue",
+            400,
+            "lightblue",
           ],
           "fill-extrusion-height": [
-            "interpolate", ["linear"], ["zoom"],
-            15, 0,
-            16, ["get", "render_height"]
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            15,
+            0,
+            16,
+            ["get", "render_height"],
           ],
           "fill-extrusion-base": [
-            "interpolate", ["linear"], ["zoom"],
-            15, 0,
-            16, ["get", "render_min_height"]
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            15,
+            0,
+            16,
+            ["get", "render_min_height"],
           ],
-          "fill-extrusion-opacity": 0.9
-        }
+          "fill-extrusion-opacity": 0.9,
+        },
       });
       for (const [key, url] of Object.entries(icons)) {
         map.current.loadImage(url, (error, image) => {
@@ -404,9 +478,8 @@ export default function InfraMap({
           }
         });
       }
-    }
-  )
-  }, [maplibreLoaded])
+    });
+  }, [maplibreLoaded]);
 
   useEffect(() => {
     if (!map.current || !map.current.getLayer("building-fill")) return;
@@ -414,17 +487,20 @@ export default function InfraMap({
     const filters = ["all"];
 
     // 🔹 District filter
-    if (selectedDistrict.length > 0 && !selectedDistrict.includes("Все районы")) {
+    if (
+      selectedDistrict.length > 0 &&
+      !selectedDistrict.includes("Все районы")
+    ) {
       const districtFilterValues = selectedDistrict
-        .filter(d => d !== "Все районы")
-        .map(d => `${d} район`);
+        .filter((d) => d !== "Все районы")
+        .map((d) => `${d} район`);
 
       filters.push([
         "in",
         ["get", "district"],
         // ["literal", selectedDistrict],
         // ["literal", selectedDistrict.filter(d => d !== "Все районы")],
-        ["literal", districtFilterValues]
+        ["literal", districtFilterValues],
       ]);
     }
 
@@ -437,34 +513,36 @@ export default function InfraMap({
     map.current.setFilter("building-fill", filters);
   }, [buildingCategories, selectedDistrict]);
 
-
   const loadLayer = async (layerKey) => {
-    if (!map.current || !window.maplibregl) return
-    const maplibregl = window.maplibregl
+    if (!map.current || !window.maplibregl) return;
+    const maplibregl = window.maplibregl;
 
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
 
     try {
-
       if (map.current.getSource(layerKey)) {
-        map.current.removeSource(layerKey)
+        map.current.removeSource(layerKey);
       }
-      if (map.current.getLayer(`${layerKey}-polygons`)) map.current.removeLayer(`${layerKey}-polygons`)
-      if (map.current.getLayer(`${layerKey}-lines`)) map.current.removeLayer(`${layerKey}-lines`)
-      if (map.current.getLayer(`${layerKey}-points`)) map.current.removeLayer(`${layerKey}-points`)
+      if (map.current.getLayer(`${layerKey}-polygons`))
+        map.current.removeLayer(`${layerKey}-polygons`);
+      if (map.current.getLayer(`${layerKey}-lines`))
+        map.current.removeLayer(`${layerKey}-lines`);
+      if (map.current.getLayer(`${layerKey}-points`))
+        map.current.removeLayer(`${layerKey}-points`);
 
-      const config = layerConfigs[layerKey]
+      const config = layerConfigs[layerKey];
 
       if (config.type === "geojson") {
-
-        let url = urls[layerKey]
+        let url = urls[layerKey];
 
         // 🔹 Apply district filtering for ALL geojson layers
         const districtFilter = buildQuery();
         if (districtFilter) {
           // if url already has query params → append with `&`
-          url += url.includes("?") ? `&${districtFilter.slice(1)}` : districtFilter;
+          url += url.includes("?")
+            ? `&${districtFilter.slice(1)}`
+            : districtFilter;
         }
 
         // если это repgis – строим url с фильтрацией
@@ -472,13 +550,14 @@ export default function InfraMap({
         //   url = buildRepgisUrl()
         // }
         // 🔹 Fetch GeoJSON data
-        const response = await fetch(url)
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
+        const response = await fetch(url);
+        if (!response.ok)
+          throw new Error(`HTTP error! status: ${response.status}`);
 
-        const data = await response.json()
-        let geoJsonData
+        const data = await response.json();
+        let geoJsonData;
         if (data.features) {
-          geoJsonData = data
+          geoJsonData = data;
         } else if (data.results) {
           geoJsonData = {
             type: "FeatureCollection",
@@ -487,42 +566,53 @@ export default function InfraMap({
               geometry: item.geometry || item.geom,
               properties: item.properties || item,
             })),
-          }
+          };
         } else {
-          throw new Error("Invalid data format")
+          throw new Error("Invalid data format");
         }
 
-        map.current.addSource(layerKey, { type: "geojson", data: geoJsonData })
+        map.current.addSource(layerKey, { type: "geojson", data: geoJsonData });
 
         // polygons
         map.current.addLayer({
           id: `${layerKey}-polygons`,
           type: "fill",
           source: layerKey,
-          filter: ["in", ["geometry-type"], ["literal", ["Polygon", "MultiPolygon"]]],
+          filter: [
+            "in",
+            ["geometry-type"],
+            ["literal", ["Polygon", "MultiPolygon"]],
+          ],
           paint: {
             // "fill-color": config.color,
-            "fill-color": layerKey === "repgis" ? pointPaintLogic.repgis.polygon : pointPaintLogic[layerKey] || config.color,
+            "fill-color":
+              layerKey === "repgis"
+                ? pointPaintLogic.repgis.polygon
+                : pointPaintLogic[layerKey] || config.color,
             "fill-opacity": 0.6,
             "fill-outline-color": "#000000",
           },
-        })
+        });
 
         // lines
         map.current.addLayer({
           id: `${layerKey}-lines`,
           type: "line",
           source: layerKey,
-          filter: ["in", ["geometry-type"], ["literal", ["LineString", "MultiLineString"]]],
+          filter: [
+            "in",
+            ["geometry-type"],
+            ["literal", ["LineString", "MultiLineString"]],
+          ],
           paint: {
-            "line-color": 
+            "line-color":
               layerKey === "repgis"
                 ? pointPaintLogic.repgis.line
                 : pointPaintLogic[layerKey] || config.color,
             "line-width": 2,
             "line-opacity": 0.8,
           },
-        })
+        });
 
         // points
         map.current.addLayer({
@@ -531,7 +621,7 @@ export default function InfraMap({
           source: layerKey,
           filter: ["==", ["geometry-type"], "Point"],
           paint: {
-            "circle-color": 
+            "circle-color":
               layerKey === "repgis"
                 ? pointPaintLogic.repgis.point
                 : pointPaintLogic[layerKey] || config.color,
@@ -541,33 +631,35 @@ export default function InfraMap({
             "circle-stroke-width": 2,
           },
           // "building-fill"
-        })
+        });
 
         // fit bounds
         if (geoJsonData.features.length > 0) {
-          const bounds = new maplibregl.LngLatBounds()
+          const bounds = new maplibregl.LngLatBounds();
           geoJsonData.features.forEach((feature) => {
             if (feature.geometry.type === "Point") {
-              bounds.extend(feature.geometry.coordinates)
+              bounds.extend(feature.geometry.coordinates);
             } else if (feature.geometry.type === "MultiPolygon") {
               feature.geometry.coordinates.forEach((polygon) => {
                 polygon.forEach((ring) => {
-                  ring.forEach((coord) => bounds.extend(coord))
-                })
-              })
+                  ring.forEach((coord) => bounds.extend(coord));
+                });
+              });
             } else if (feature.geometry.type === "Polygon") {
               feature.geometry.coordinates.forEach((ring) => {
-                ring.forEach((coord) => bounds.extend(coord))
-              })
+                ring.forEach((coord) => bounds.extend(coord));
+              });
             } else if (feature.geometry.type === "LineString") {
-              feature.geometry.coordinates.forEach((coord) => bounds.extend(coord))
+              feature.geometry.coordinates.forEach((coord) =>
+                bounds.extend(coord)
+              );
             } else if (feature.geometry.type === "MultiLineString") {
               feature.geometry.coordinates.forEach((line) => {
-                line.forEach((coord) => bounds.extend(coord))
-              })
+                line.forEach((coord) => bounds.extend(coord));
+              });
             }
-          })
-          map.current.fitBounds(bounds, { padding: 50 })
+          });
+          map.current.fitBounds(bounds, { padding: 50 });
         }
       }
 
@@ -578,7 +670,7 @@ export default function InfraMap({
           tiles: [urls[layerKey]],
           minzoom: 0,
           maxzoom: 14,
-        })
+        });
 
         map.current.addLayer({
           id: `${layerKey}-fill`,
@@ -589,14 +681,14 @@ export default function InfraMap({
             "fill-color": ["get", "config.color"],
             "fill-opacity": 0.5,
           },
-        })
+        });
       }
     } catch (err) {
-      console.error("Error loading layer:", err)
+      console.error("Error loading layer:", err);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
     if (!overlayRef.current || !map.current) return;
@@ -608,14 +700,16 @@ export default function InfraMap({
           const res = await fetch(urls.social);
           const data = await res.json();
           window.cachedData = window.cachedData || {};
-          window.cachedData.social = data.features ? data : {
-            type: "FeatureCollection",
-            features: (data.results || []).map(item => ({
-              type: "Feature",
-              geometry: item.geometry,
-              properties: item,
-            })),
-          };
+          window.cachedData.social = data.features
+            ? data
+            : {
+                type: "FeatureCollection",
+                features: (data.results || []).map((item) => ({
+                  type: "Feature",
+                  geometry: item.geometry,
+                  properties: item,
+                })),
+              };
         }
         return window.cachedData.social;
       })();
@@ -625,7 +719,9 @@ export default function InfraMap({
         .map(([key]) => key);
 
       const filteredSocialFeatures = selectedSocial.length
-        ? socialData.features.filter((f) => selectedSocial.includes(f.properties.category))
+        ? socialData.features.filter((f) =>
+            selectedSocial.includes(f.properties.category)
+          )
         : [];
 
       const socialLayer = new SocialIconLayer({
@@ -639,14 +735,16 @@ export default function InfraMap({
           const res = await fetch(urls.repgis);
           const data = await res.json();
           window.cachedData = window.cachedData || {};
-          window.cachedData.repgis_full = data.features ? data : {
-            type: "FeatureCollection",
-            features: (data.results || []).map(item => ({
-              type: "Feature",
-              geometry: item.geometry,
-              properties: item,
-            })),
-          };
+          window.cachedData.repgis_full = data.features
+            ? data
+            : {
+                type: "FeatureCollection",
+                features: (data.results || []).map((item) => ({
+                  type: "Feature",
+                  geometry: item.geometry,
+                  properties: item,
+                })),
+              };
         }
         return window.cachedData.repgis_full;
       })();
@@ -654,95 +752,103 @@ export default function InfraMap({
       const selectedRepgis = Object.entries(enginNodes)
         .filter(([, enabled]) => enabled)
         .map(([name]) => name);
-        
+
       let mergedRepgisFeatures = [];
 
       if (selectedRepgis.length > 0) {
-          const filteredMainFeatures = repgisData.features.filter(f => 
-              selectedRepgis.includes(f.properties.cat_name)
-          );
+        const filteredMainFeatures = repgisData.features.filter((f) =>
+          selectedRepgis.includes(f.properties.cat_name)
+        );
 
-          // <<< START: RESTORED MARKER_GEOJSON LOGIC
-          const markerPoints = filteredMainFeatures
-              .filter(f => f.properties.marker_geojson)
-              .map(f => {
-                  let markerGeom = f.properties.marker_geojson;
-                  if (typeof markerGeom === "string") {
-                      try {
-                          markerGeom = JSON.parse(markerGeom);
-                      } catch (e) {
-                          console.warn("Invalid marker_geojson for feature:", f.properties.id);
-                          return null;
-                      }
-                  }
-                  if (!markerGeom || markerGeom.type !== "Point") return null;
-                  return {
-                      type: "Feature",
-                      geometry: markerGeom,
-                      properties: f.properties,
-                  };
-              })
-              .filter(Boolean); // Remove any nulls
-          // <<< END: RESTORED MARKER_GEOJSON LOGIC
-          
-          // Combine main polygons/lines with their extracted marker points
-          mergedRepgisFeatures = [...filteredMainFeatures, ...markerPoints];
+        // <<< START: RESTORED MARKER_GEOJSON LOGIC
+        const markerPoints = filteredMainFeatures
+          .filter((f) => f.properties.marker_geojson)
+          .map((f) => {
+            let markerGeom = f.properties.marker_geojson;
+            if (typeof markerGeom === "string") {
+              try {
+                markerGeom = JSON.parse(markerGeom);
+              } catch (e) {
+                console.warn(
+                  "Invalid marker_geojson for feature:",
+                  f.properties.id
+                );
+                return null;
+              }
+            }
+            if (!markerGeom || markerGeom.type !== "Point") return null;
+            return {
+              type: "Feature",
+              geometry: markerGeom,
+              properties: f.properties,
+            };
+          })
+          .filter(Boolean); // Remove any nulls
+        // <<< END: RESTORED MARKER_GEOJSON LOGIC
+
+        // Combine main polygons/lines with their extracted marker points
+        mergedRepgisFeatures = [...filteredMainFeatures, ...markerPoints];
       }
-
 
       const repgisLayer = new RepgisIconLayer({
         id: "repgis-layer",
         data: mergedRepgisFeatures, // Use the fully processed data
       });
-      
+
       // 3. Set both layers at the same time
       overlayRef.current.setProps({ layers: [socialLayer, repgisLayer] });
     };
 
     updateLayers();
-    
   }, [socialCategories, enginNodes]);
 
-const handleLayerSwitch = (layerKey) => {
-  setActiveLayer(layerKey);
+  const handleLayerSwitch = (layerKey) => {
+    setActiveLayer(layerKey);
 
-  if (!map.current) return;
+    if (!map.current) return;
 
-  if (layerKey === "building") {
-    // Hide readiness if exists
-    ["readiness-polygons", "readiness-lines", "readiness-points"].forEach(id => {
-      if (map.current.getLayer(id)) map.current.setLayoutProperty(id, "visibility", "none");
-    });
+    if (layerKey === "building") {
+      // Hide readiness if exists
+      ["readiness-polygons", "readiness-lines", "readiness-points"].forEach(
+        (id) => {
+          if (map.current.getLayer(id))
+            map.current.setLayoutProperty(id, "visibility", "none");
+        }
+      );
 
-    // Show building
-    loadBuildingLayer();
-  } else if (layerKey === "readiness") {
-    // Hide building
-    if (map.current.getLayer("building-fill")) {
-      map.current.setLayoutProperty("building-fill", "visibility", "none");
-    }
+      // Show building
+      loadBuildingLayer();
+    } else if (layerKey === "readiness") {
+      // Hide building
+      if (map.current.getLayer("building-fill")) {
+        map.current.setLayoutProperty("building-fill", "visibility", "none");
+      }
 
-    // Show readiness
-    if (map.current.getLayer("readiness-polygons")) {
-      // Already loaded → just show it
-      ["readiness-polygons", "readiness-lines", "readiness-points"].forEach(id => {
-        if (map.current.getLayer(id)) map.current.setLayoutProperty(id, "visibility", "visible");
-      });
-    } else {
-      // Not loaded yet → load it
-      loadLayer("readiness").then(() => {
-        ["readiness-polygons", "readiness-lines", "readiness-points"].forEach(id => {
-          if (map.current.getLayer(id)) map.current.setLayoutProperty(id, "visibility", "visible");
+      // Show readiness
+      if (map.current.getLayer("readiness-polygons")) {
+        // Already loaded → just show it
+        ["readiness-polygons", "readiness-lines", "readiness-points"].forEach(
+          (id) => {
+            if (map.current.getLayer(id))
+              map.current.setLayoutProperty(id, "visibility", "visible");
+          }
+        );
+      } else {
+        // Not loaded yet → load it
+        loadLayer("readiness").then(() => {
+          ["readiness-polygons", "readiness-lines", "readiness-points"].forEach(
+            (id) => {
+              if (map.current.getLayer(id))
+                map.current.setLayoutProperty(id, "visibility", "visible");
+            }
+          );
         });
-      });
+      }
     }
-  }
-};
-
+  };
 
   return (
-    <div className="relative w-full h-full rounded-lg shadow-md rounded-lg overflow-hidden">
-
+    <div className="relative w-full h-full rounded-lg shadow-md overflow-hidden">
       {/* Layer Switcher */}
       <div className="absolute top-20 left-1/2 -translate-x-1/2 z-10 flex items-center">
         <div className="flex space-x-2">
@@ -765,7 +871,9 @@ const handleLayerSwitch = (layerKey) => {
           })}
         </div>
 
-        {loading && <div className="ml-3 text-sm text-gray-500">Загрузка...</div>}
+        {loading && (
+          <div className="ml-3 text-sm text-gray-500">Загрузка...</div>
+        )}
         {error && <div className="ml-3 text-sm text-red-600">{error}</div>}
       </div>
 
@@ -788,7 +896,7 @@ const handleLayerSwitch = (layerKey) => {
         </div>
       )}
 
-      {activeLayer==="readiness" && (
+      {activeLayer === "readiness" && (
         <div className="absolute bottom-8 right-4 p-3 bg-gray-50 rounded-md border">
           <ul className="space-y-1">
             {readinessLegend.map((item) => (
@@ -798,7 +906,7 @@ const handleLayerSwitch = (layerKey) => {
                   style={{ backgroundColor: item.color }}
                 />
                 <span className="text-xs text-gray-700 font-medium">
-                  {item.text} 
+                  {item.text}
                 </span>
                 <span className="text-xs text-gray-500">({item.label})</span>
               </li>
@@ -807,9 +915,9 @@ const handleLayerSwitch = (layerKey) => {
         </div>
       )}
 
-      {(Object.values(enginNodes).some(Boolean) || Object.values(socialCategories).some(Boolean)) && (
+      {(Object.values(enginNodes).some(Boolean) ||
+        Object.values(socialCategories).some(Boolean)) && (
         <div className="absolute bottom-8 z-40 left-[350px] p-3 bg-gray-50 rounded-md border shadow-md">
-          
           {/* Engineering (RepGIS) Legend Section */}
           {Object.values(enginNodes).some(Boolean) && (
             <ul className="space-y-1">
@@ -839,9 +947,10 @@ const handleLayerSwitch = (layerKey) => {
           )}
 
           {/* Divider: Shows only if both legends are active */}
-          {Object.values(enginNodes).some(Boolean) && Object.values(socialCategories).some(Boolean) && (
-            <hr className="my-2 border-gray-200" />
-          )}
+          {Object.values(enginNodes).some(Boolean) &&
+            Object.values(socialCategories).some(Boolean) && (
+              <hr className="my-2 border-gray-200" />
+            )}
 
           {/* Social Legend Section */}
           {Object.values(socialCategories).some(Boolean) && (
@@ -873,5 +982,5 @@ const handleLayerSwitch = (layerKey) => {
         </div>
       )}
     </div>
-  )
+  );
 }
