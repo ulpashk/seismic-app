@@ -199,8 +199,10 @@ export default function InfraMap({
     if (!map.current) return;
 
     const config = layerConfigs.building;
+    console.log("Loading building layer with config:", config);
 
     if (!map.current.getSource("building")) {
+      console.log("Adding building source with URL:", urls.building);
       map.current.addSource("building", {
         type: "vector",
         tiles: [urls.building],
@@ -210,35 +212,33 @@ export default function InfraMap({
     }
 
     if (!map.current.getLayer("building-fill")) {
+      console.log("Adding building-fill layer");
       map.current.addLayer({
         id: "building-fill",
         type: "fill",
         source: "building",
         "source-layer": config.sourceLayer,
         paint: {
-          "fill-color": [
-            "match",
-            ["get", "SRI_class"],
-
-            "E",
-            "#ED3726", // зелёный
-            "D",
-            "#ED7626", // светло-зелёный
-            "C",
-            "#EDDC26", // лаймовый  // янтарный
-            "B",
-            "#8DE314", // оранжевый
-            "A",
-            "#038009", // красный
-
-            /* default */ "#9E9E9E", // серый если не совпало
-          ],
-          "fill-opacity": 0.4,
-          // "fill-color": config.color,
-          // "fill-opacity": 0.4,
+          // Используем sri_color из свойств здания
+          "fill-color": ["get", "sri_color"],
+          "fill-opacity": 0.8,
+          "fill-outline-color": "#000000",
         },
       });
+      console.log("Building layer added successfully");
     } else {
+      console.log("Building layer already exists, updating properties");
+      // Обновляем цвета слоя, если он уже существует
+      map.current.setPaintProperty("building-fill", "fill-color", [
+        "get",
+        "sri_color",
+      ]);
+      map.current.setPaintProperty("building-fill", "fill-opacity", 0.8);
+      map.current.setPaintProperty(
+        "building-fill",
+        "fill-outline-color",
+        "#000000"
+      );
       map.current.setLayoutProperty("building-fill", "visibility", "visible");
     }
   };
@@ -418,7 +418,44 @@ export default function InfraMap({
 
     // loadLayer("building")
     map.current.on("load", () => {
+      console.log("Map loaded");
       loadBuildingLayer();
+
+      // Устанавливаем видимость слоя в зависимости от activeLayer
+      if (activeLayer !== "building" && map.current.getLayer("building-fill")) {
+        map.current.setLayoutProperty("building-fill", "visibility", "none");
+      }
+
+      // Добавляем обработчики для отладки
+      map.current.on("sourcedata", (e) => {
+        if (e.sourceId === "building" && e.isSourceLoaded) {
+          console.log("Building source data loaded");
+        }
+      });
+
+      map.current.on("error", (e) => {
+        console.error("Map error:", e);
+      });
+
+      // Добавляем обработчик клика для отладки свойств зданий
+      map.current.on("click", "building-fill", (e) => {
+        if (e.features && e.features.length > 0) {
+          console.log("Building clicked:", e.features[0].properties);
+          console.log(
+            "Available properties:",
+            Object.keys(e.features[0].properties)
+          );
+        }
+      });
+
+      // Добавляем обработчик для изменения курсора
+      map.current.on("mouseenter", "building-fill", () => {
+        map.current.getCanvas().style.cursor = "pointer";
+      });
+
+      map.current.on("mouseleave", "building-fill", () => {
+        map.current.getCanvas().style.cursor = "";
+      });
 
       // loadLayer("repgis");
       // loadLayer("social");
@@ -479,7 +516,22 @@ export default function InfraMap({
         });
       }
     });
-  }, [maplibreLoaded]);
+  }, [maplibreLoaded, activeLayer]);
+
+  // Управляем видимостью слоя зданий в зависимости от activeLayer
+  useEffect(() => {
+    if (!map.current) return;
+
+    if (activeLayer === "building") {
+      if (map.current.getLayer("building-fill")) {
+        map.current.setLayoutProperty("building-fill", "visibility", "visible");
+      }
+    } else {
+      if (map.current.getLayer("building-fill")) {
+        map.current.setLayoutProperty("building-fill", "visibility", "none");
+      }
+    }
+  }, [activeLayer]);
 
   useEffect(() => {
     if (!map.current || !map.current.getLayer("building-fill")) return;
