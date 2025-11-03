@@ -222,7 +222,7 @@ export default function InfraMap({
           // Используем sri_color из свойств здания
           "fill-color": ["get", "sri_color"],
           "fill-opacity": 0.8,
-          "fill-outline-color": "#000000",
+          // "fill-outline-color": "#000000",
         },
       });
       console.log("Building layer added successfully");
@@ -235,9 +235,9 @@ export default function InfraMap({
       ]);
       map.current.setPaintProperty("building-fill", "fill-opacity", 0.8);
       map.current.setPaintProperty(
-        "building-fill",
-        "fill-outline-color",
-        "#000000"
+        "building-fill"
+        // "fill-outline-color",
+        // "#000000"
       );
       map.current.setLayoutProperty("building-fill", "visibility", "visible");
     }
@@ -271,6 +271,7 @@ export default function InfraMap({
         );
       }
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDistrict, buildingCategories]);
 
   const loadSeismicSafetyLayer = async () => {

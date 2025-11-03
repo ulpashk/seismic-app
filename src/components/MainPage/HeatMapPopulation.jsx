@@ -9,6 +9,14 @@ export default function HeatMapPopulation() {
   const [mapLoaded, setMapLoaded] = useState(false);
   const [error, setError] = useState(null);
 
+  // Проверка доступности maplibre-gl
+  useEffect(() => {
+    if (!maplibregl) {
+      setError("MapLibre GL не загружен");
+      return;
+    }
+  }, []);
+
   // Фильтры состояния
   const [filters, setFilters] = useState({
     densityLevels: {
@@ -44,7 +52,15 @@ export default function HeatMapPopulation() {
   useEffect(() => {
     if (!mapContainer.current || mapRef.current) return;
 
+    // Проверим доступность maplibre-gl
+    if (!maplibregl) {
+      setError("MapLibre GL недоступен");
+      return;
+    }
+
     try {
+      console.log("🚀 Initializing HeatMapPopulation");
+
       const map = new maplibregl.Map({
         container: mapContainer.current,
         style: `https://api.maptiler.com/maps/basic-v2/style.json?key=${API_KEY}`,
@@ -52,34 +68,52 @@ export default function HeatMapPopulation() {
         zoom: 11,
         antialias: true,
       });
+
       map.addControl(new maplibregl.NavigationControl(), "top-right");
       mapRef.current = map;
 
-      const onLoad = () => setMapLoaded(true);
+      const onLoad = () => {
+        console.log("✅ HeatMapPopulation map loaded");
+        setMapLoaded(true);
+      };
+
       const onError = (e) => {
-        console.error("Map error:", e);
-        setError("Ошибка загрузки карты");
+        console.error("❌ HeatMapPopulation map error:", e);
+        setError(
+          `Ошибка загрузки карты: ${e.error?.message || "Неизвестная ошибка"}`
+        );
       };
 
       map.on("load", onLoad);
       map.on("error", onError);
 
       return () => {
-        map.off("load", onLoad);
-        map.off("error", onError);
-        map.remove();
-        mapRef.current = null;
+        try {
+          map.off("load", onLoad);
+          map.off("error", onError);
+          map.remove();
+          mapRef.current = null;
+        } catch (cleanupError) {
+          console.warn("⚠️ Cleanup error:", cleanupError);
+        }
       };
     } catch (e) {
-      console.error("Map init failed:", e);
-      setError("Ошибка инициализации карты");
+      console.error("❌ HeatMapPopulation init failed:", e);
+      setError(`Ошибка инициализации карты: ${e.message}`);
     }
   }, []);
 
   // Добавление слоев с фильтрацией
   useEffect(() => {
     if (!mapRef.current || !mapLoaded) return;
+
     const map = mapRef.current;
+
+    // Проверим валидность карты
+    if (!map || map._removed) {
+      console.warn("⚠️ Map is not available or was removed");
+      return;
+    }
 
     const safeRemoveLayer = (id) => {
       try {
@@ -100,213 +134,225 @@ export default function HeatMapPopulation() {
         console.warn(`Failed to remove source ${id}:`, e);
       }
     };
-
     const addLayers = () => {
-      if (!map.isStyleLoaded()) {
-        setTimeout(addLayers, 100);
-        return;
-      }
-
-      // Очистка
-      safeRemoveLayer(POINTS_ID);
-      safeRemoveLayer(HEAT_ID);
-      safeRemoveSource(SOURCE_ID);
-
-      // Добавление источника
-      map.addSource(SOURCE_ID, {
-        type: "vector",
-        tiles: [VECTOR_TILES],
-        minzoom: 0,
-        maxzoom: 14,
-      });
-
-      // Создание фильтра
-      const buildFilter = () => {
-        const conditions = ["all"];
-
-        conditions.push([
-          ">",
-          ["to-number", ["get", "total_population"], 0],
-          0,
-        ]);
-
-        // Фильтрация по плотности
-        const enabledDensities = Object.entries(filters.densityLevels)
-          .filter(([_, enabled]) => enabled)
-          .map(([key]) => key);
-
-        if (enabledDensities.length > 0 && enabledDensities.length < 3) {
-          const densityConditions = ["any"];
-
-          enabledDensities.forEach((level) => {
-            const population = ["to-number", ["get", "total_population"], 0];
-            switch (level) {
-              case "low":
-                densityConditions.push(["<", population, 25]);
-                break;
-              case "medium":
-                densityConditions.push([
-                  "all",
-                  [">=", population, 25],
-                  ["<", population, 60],
-                ]);
-                break;
-              case "high":
-                densityConditions.push([">=", population, 60]);
-                break;
-              default:
-                break;
-            }
-          });
-
-          conditions.push(densityConditions);
+      try {
+        if (!map.isStyleLoaded()) {
+          setTimeout(addLayers, 100);
+          return;
         }
 
-        return conditions.length > 1 ? conditions : null;
-      };
+        console.log("🗂️ Adding population layers");
 
-      const populationFilter = buildFilter();
+        // Очистка
+        safeRemoveLayer(POINTS_ID);
+        safeRemoveLayer(HEAT_ID);
+        safeRemoveSource(SOURCE_ID);
 
-      // Тепловая карта
-      map.addLayer({
-        id: HEAT_ID,
-        type: "heatmap",
-        source: SOURCE_ID,
-        "source-layer": SOURCE_LAYER,
-        maxzoom: 15,
-        paint: {
-          "heatmap-weight": [
-            "interpolate",
-            ["linear"],
+        // Добавление источника
+        map.addSource(SOURCE_ID, {
+          type: "vector",
+          tiles: [VECTOR_TILES],
+          minzoom: 0,
+          maxzoom: 14,
+        });
+
+        console.log("✅ Population source added");
+
+        // Создание фильтра
+        const buildFilter = () => {
+          const conditions = ["all"];
+
+          conditions.push([
+            ">",
             ["to-number", ["get", "total_population"], 0],
             0,
-            0.0,
-            5,
-            0.2,
-            15,
-            0.5,
-            40,
-            0.8,
-            80,
-            1.0,
-          ],
-          "heatmap-intensity": [
-            "interpolate",
-            ["linear"],
-            ["zoom"],
-            10,
-            1.0,
-            14,
-            2.0,
-          ],
-          "heatmap-radius": [
-            "interpolate",
-            ["linear"],
-            ["zoom"],
-            10,
-            10,
-            12,
-            18,
-            14,
-            24,
-          ],
-          "heatmap-color": [
-            "interpolate",
-            ["linear"],
-            ["heatmap-density"],
-            0.0,
-            "rgba(0,0,255,0)",
-            0.2,
-            "#4cc9f0",
-            0.4,
-            "#4895ef",
-            0.6,
-            "#f1c453",
-            0.8,
-            "#f8961e",
-            1.0,
-            "#d00000",
-          ],
-          "heatmap-opacity": [
-            "interpolate",
-            ["linear"],
-            ["zoom"],
-            12,
-            1,
-            14,
-            0,
-          ],
-        },
-      });
+          ]);
 
-      // Точки для крупного масштаба
-      map.addLayer({
-        id: POINTS_ID,
-        type: "circle",
-        source: SOURCE_ID,
-        "source-layer": SOURCE_LAYER,
-        minzoom: 13,
-        paint: {
-          "circle-opacity": ["interpolate", ["linear"], ["zoom"], 13, 0, 14, 1],
-          "circle-radius": [
-            "interpolate",
-            ["linear"],
-            ["to-number", ["get", "total_population"], 0],
-            1,
-            3,
-            10,
-            5,
-            25,
-            7,
-            60,
-            9,
-            120,
-            11,
-          ],
-          "circle-color": [
-            "interpolate",
-            ["linear"],
-            ["to-number", ["get", "total_population"], 0],
-            1,
-            "#c7f9ff",
-            10,
-            "#86efac",
-            25,
-            "#22c55e",
-            60,
-            "#f59e0b",
-            120,
-            "#ef4444",
-          ],
-          "circle-stroke-width": 0.5,
-          "circle-stroke-color": "#4b5563",
-        },
-      });
+          // Фильтрация по плотности
+          const enabledDensities = Object.entries(filters.densityLevels)
+            .filter(([_, enabled]) => enabled)
+            .map(([key]) => key);
 
-      // Применение фильтров
-      const heatmapFilter = [
-        "all",
-        populationFilter || ["!=", ["get", "total_population"], null],
-        ["==", ["%", ["to-number", ["get", SAMPLE_FIELD], 0], MOD], 0],
-      ].filter(Boolean);
+          if (enabledDensities.length > 0 && enabledDensities.length < 3) {
+            const densityConditions = ["any"];
 
-      const pointsFilter = [
-        "all",
-        populationFilter || ["!=", ["get", "total_population"], null],
-        ["==", ["%", ["to-number", ["get", SAMPLE_FIELD], 0], MOD], 0],
-      ].filter(Boolean);
+            enabledDensities.forEach((level) => {
+              const population = ["to-number", ["get", "total_population"], 0];
+              switch (level) {
+                case "low":
+                  densityConditions.push(["<", population, 25]);
+                  break;
+                case "medium":
+                  densityConditions.push([
+                    "all",
+                    [">=", population, 25],
+                    ["<", population, 60],
+                  ]);
+                  break;
+                case "high":
+                  densityConditions.push([">=", population, 60]);
+                  break;
+                default:
+                  break;
+              }
+            });
 
-      map.setFilter(HEAT_ID, heatmapFilter);
-      map.setFilter(POINTS_ID, pointsFilter);
+            conditions.push(densityConditions);
+          }
 
-      // Обработчики кликов
-      map.on("click", POINTS_ID, (e) => {
-        if (e.features && e.features.length > 0) {
-          const props = e.features[0].properties;
-          new maplibregl.Popup()
-            .setLngLat(e.lngLat)
-            .setHTML(
-              `
+          return conditions.length > 1 ? conditions : null;
+        };
+
+        const populationFilter = buildFilter();
+
+        // Тепловая карта
+        map.addLayer({
+          id: HEAT_ID,
+          type: "heatmap",
+          source: SOURCE_ID,
+          "source-layer": SOURCE_LAYER,
+          maxzoom: 15,
+          paint: {
+            "heatmap-weight": [
+              "interpolate",
+              ["linear"],
+              ["to-number", ["get", "total_population"], 0],
+              0,
+              0.0,
+              5,
+              0.2,
+              15,
+              0.5,
+              40,
+              0.8,
+              80,
+              1.0,
+            ],
+            "heatmap-intensity": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              10,
+              1.0,
+              14,
+              2.0,
+            ],
+            "heatmap-radius": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              10,
+              10,
+              12,
+              18,
+              14,
+              24,
+            ],
+            "heatmap-color": [
+              "interpolate",
+              ["linear"],
+              ["heatmap-density"],
+              0.0,
+              "rgba(0,0,255,0)",
+              0.2,
+              "#4cc9f0",
+              0.4,
+              "#4895ef",
+              0.6,
+              "#f1c453",
+              0.8,
+              "#f8961e",
+              1.0,
+              "#d00000",
+            ],
+            "heatmap-opacity": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              12,
+              1,
+              14,
+              0,
+            ],
+          },
+        });
+
+        // Точки для крупного масштаба
+        map.addLayer({
+          id: POINTS_ID,
+          type: "circle",
+          source: SOURCE_ID,
+          "source-layer": SOURCE_LAYER,
+          minzoom: 13,
+          paint: {
+            "circle-opacity": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              13,
+              0,
+              14,
+              1,
+            ],
+            "circle-radius": [
+              "interpolate",
+              ["linear"],
+              ["to-number", ["get", "total_population"], 0],
+              1,
+              3,
+              10,
+              5,
+              25,
+              7,
+              60,
+              9,
+              120,
+              11,
+            ],
+            "circle-color": [
+              "interpolate",
+              ["linear"],
+              ["to-number", ["get", "total_population"], 0],
+              1,
+              "#c7f9ff",
+              10,
+              "#86efac",
+              25,
+              "#22c55e",
+              60,
+              "#f59e0b",
+              120,
+              "#ef4444",
+            ],
+            "circle-stroke-width": 0.5,
+            "circle-stroke-color": "#4b5563",
+          },
+        });
+
+        // Применение фильтров
+        const heatmapFilter = [
+          "all",
+          populationFilter || ["!=", ["get", "total_population"], null],
+          ["==", ["%", ["to-number", ["get", SAMPLE_FIELD], 0], MOD], 0],
+        ].filter(Boolean);
+
+        const pointsFilter = [
+          "all",
+          populationFilter || ["!=", ["get", "total_population"], null],
+          ["==", ["%", ["to-number", ["get", SAMPLE_FIELD], 0], MOD], 0],
+        ].filter(Boolean);
+
+        map.setFilter(HEAT_ID, heatmapFilter);
+        map.setFilter(POINTS_ID, pointsFilter);
+
+        // Обработчики кликов
+        map.on("click", POINTS_ID, (e) => {
+          if (e.features && e.features.length > 0) {
+            const props = e.features[0].properties;
+            new maplibregl.Popup()
+              .setLngLat(e.lngLat)
+              .setHTML(
+                `
               <div style="padding: 8px;">
                 <h3 style="margin: 0 0 8px 0; font-weight: bold;">Данные населения</h3>
                 <p style="margin: 4px 0;"><strong>Население:</strong> ${
@@ -317,18 +363,22 @@ export default function HeatMapPopulation() {
                 )}, ${e.lngLat.lat.toFixed(6)}</p>
               </div>
               `
-            )
-            .addTo(map);
-        }
-      });
+              )
+              .addTo(map);
+          }
+        });
 
-      map.on("mouseenter", POINTS_ID, () => {
-        map.getCanvas().style.cursor = "pointer";
-      });
+        map.on("mouseenter", POINTS_ID, () => {
+          map.getCanvas().style.cursor = "pointer";
+        });
 
-      map.on("mouseleave", POINTS_ID, () => {
-        map.getCanvas().style.cursor = "";
-      });
+        map.on("mouseleave", POINTS_ID, () => {
+          map.getCanvas().style.cursor = "";
+        });
+      } catch (layerError) {
+        console.error("❌ Error adding population layers:", layerError);
+        setError(`Ошибка загрузки слоев: ${layerError.message}`);
+      }
     };
 
     addLayers();
