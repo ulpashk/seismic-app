@@ -17,6 +17,7 @@ export default function RecomendPage() {
     "Турксибский",
   ];
   const [filters, setFilters] = useState({
+    selectedDistrict: null, // Изменяем структуру для совместимости с API
     districts: [],
     riskLevels: {
       high: true,
@@ -30,13 +31,18 @@ export default function RecomendPage() {
     },
   });
   const resetToAllDistricts = () => {
-    setFilters((prev) => ({ ...prev, districts: [] }));
+    setFilters((prev) => ({
+      ...prev,
+      districts: [],
+      selectedDistrict: null,
+    }));
   };
 
   const selectDistrict = (district) => {
     setFilters((prev) => ({
       ...prev,
       districts: [district],
+      selectedDistrict: district,
     }));
   };
 
@@ -51,11 +57,11 @@ export default function RecomendPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
         <div className="space-y-6">
-          <Demolition />
-          <ClusterMap />
+          <Demolition filters={filters} />
+          <ClusterMap filters={filters} />
         </div>
-        <Certification />
-        <Reinforcement />
+        <Certification filters={filters} />
+        <Reinforcement filters={filters} />
       </div>
     </div>
   );
