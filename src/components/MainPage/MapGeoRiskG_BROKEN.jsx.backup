@@ -304,9 +304,6 @@ export default function GeoRiskMapDashboard({
     // Reset geoStructsLoaded flag so layers are recreated in correct order
     setGeoStructsLoaded(false);
 
-    // Reset geo risk layer flag so it gets recreated with new style
-    geoRiskLayerCreatedRef.current = false;
-
     const API_KEY = "9zZ4lJvufSPFPoOGi6yZ";
     const styleUrls = {
       basic: `https://api.maptiler.com/maps/basic-v2/style.json?key=${API_KEY}`,
@@ -558,473 +555,312 @@ export default function GeoRiskMapDashboard({
     return () => clearTimeout(timeoutId);
   }, [geoData, mapLoaded, addGeoStructLayers]);
 
-  // State for geo risk data
-  const [geoRiskData, setGeoRiskData] = useState(null);
-  const [loadingProgress, setLoadingProgress] = useState(0);
-  const [loadingMessage, setLoadingMessage] = useState("");
-  const loadStartTimeRef = useRef(null);
-  const geoRiskLayerCreatedRef = useRef(false); // Track if layer was created
-  const workerRef = useRef(null);
-  const accumulatedFeaturesRef = useRef([]);
-
-  // Load geo risk data using Web Worker for better performance
+  // Add tiles AFTER geostructures are loaded (so geostructs appear on top)
   useEffect(() => {
-    // Создаем Worker
-    workerRef.current = new Worker("/geoWorker.js");
-
-    loadStartTimeRef.current = performance.now();
-    console.log("⏱️ [TIMING] Starting geo_risk.geojson loading with Worker...");
-    setLoadingMessage("Загрузка данных...");
-
-    // Обработчик сообщений от Worker
-    workerRef.current.onmessage = (e) => {
-      const {
-        type,
-        chunk,
-        chunkIndex,
-        totalChunks,
-        isLast,
-        progress,
-        message,
-        totalFeatures,
-        totalTime,
-        error,
-      } = e.data;
-
-      if (type === "PROGRESS") {
-        setLoadingProgress(progress);
-        setLoadingMessage(message);
-        console.log(`🔄 ${message}`);
-      } else if (type === "CHUNK_READY") {
-        // Накапливаем features из chunks
-        accumulatedFeaturesRef.current.push(...chunk);
-
-        const currentProgress = Math.round(
-          ((chunkIndex + 1) / totalChunks) * 100
-        );
-        setLoadingProgress(currentProgress);
-        setLoadingMessage(`Отрисовка: ${currentProgress}%`);
-
-        // DEBUG: Check first feature
-        if (chunkIndex === 0 && chunk[0]) {
-          console.log("🔍 FIRST FEATURE:", chunk[0].properties);
-        }
-
-        // Логируем только каждый 10-й chunk для уменьшения шума
-        if ((chunkIndex + 1) % 10 === 0 || isLast) {
-          console.log(
-            `📦 Chunk ${chunkIndex + 1}/${totalChunks} ready (${
-              chunk.length
-            } features, total: ${accumulatedFeaturesRef.current.length})`
-          );
-        }
-
-        // Обновляем данные каждые 5 chunks ИЛИ на последнем для оптимальной производительности
-        if ((chunkIndex + 1) % 5 === 0 || isLast) {
-          const geoData = {
-            type: "FeatureCollection",
-            features: [...accumulatedFeaturesRef.current],
-          };
-
-          // DEBUG: Check data structure before setting
-          if (chunkIndex === 4) {
-            console.log("📊 FIRST UPDATE:", {
-              totalFeatures: geoData.features.length,
-              hasColor: geoData.features
-                .slice(0, 3)
-                .map((f) => f.properties?.color_GRI),
-            });
-          }
-
-          setGeoRiskData(geoData);
-        }
-
-        if (isLast) {
-          const renderEnd = performance.now();
-          const totalElapsed = renderEnd - loadStartTimeRef.current;
-          console.log(
-            `✅ All chunks rendered! Total features: ${accumulatedFeaturesRef.current.length}`
-          );
-          console.log(
-            `⏱️ [TIMING] 🎉 TOTAL TIME (Worker + Render): ${totalElapsed.toFixed(
-              2
-            )}ms`
-          );
-          setLoadingMessage("Готово!");
-          setTimeout(() => {
-            setLoadingProgress(0);
-            setLoadingMessage("");
-          }, 1000);
-        }
-      } else if (type === "COMPLETE") {
-        console.log(
-          `✅ Worker completed: ${totalFeatures} features in ${totalTime}ms`
-        );
-      } else if (type === "ERROR") {
-        console.error("❌ Worker error:", error);
-        setGeoRiskData({ type: "FeatureCollection", features: [] });
-        setLoadingMessage("Ошибка загрузки");
-        setTimeout(() => {
-          setLoadingProgress(0);
-          setLoadingMessage("");
-        }, 2000);
-      }
-    };
-
-    // Запускаем Worker
-    workerRef.current.postMessage({
-      type: "PARSE_GEOJSON",
-      url: "/geo_risk.geojson",
-      chunkSize: 8000, // Оптимальный размер chunk для баланса скорости и плавности
-    });
-
-    // Cleanup
-    return () => {
-      if (workerRef.current) {
-        workerRef.current.terminate();
-        workerRef.current = null;
-      }
-      accumulatedFeaturesRef.current = [];
-    };
-  }, []);
-
-  // Apply filters to geo risk data - OPTIMIZED
-  const getFilteredGeoRiskData = useCallback(() => {
-    if (!geoRiskData) return { type: "FeatureCollection", features: [] };
-
-    let filtered = geoRiskData.features;
-
-    // Проверяем нужна ли фильтрация вообще
-    const hasDistrictFilter = filters.districts.length > 0;
-    const allRisks = Object.values(filters.riskLevels).every((v) => v);
-    const noRisks = Object.values(filters.riskLevels).every((v) => !v);
-
-    // Быстрый выход если нет фильтров
-    if (!hasDistrictFilter && allRisks) {
-      console.log(
-        "✅ No filters active, returning all data:",
-        filtered.length,
-        "features"
-      );
-      return {
-        type: "FeatureCollection",
-        features: filtered,
-      };
+    if (!mapRef.current || !mapLoaded || !geoStructsLoaded) {
+      console.log("⏸️ Waiting to add geo risk data:", {
+        mapLoaded,
+        geoStructsLoaded,
+      });
+      return;
     }
-
-    // Быстрый выход если все риски выключены
-    if (noRisks) {
-      console.log("⚠️ No risk levels selected, returning empty data");
-      return { type: "FeatureCollection", features: [] };
-    }
-
-    // Создаем Set для быстрого поиска (O(1) вместо O(n))
-    const districtSet = hasDistrictFilter
-      ? new Set(filters.districts.map((d) => `${d} район`))
-      : null;
-
-    const selectedRisks = !allRisks
-      ? new Set(
-          Object.entries(filters.riskLevels)
-            .filter(([_, enabled]) => enabled)
-            .map(([key]) => riskLabelMap[key])
-        )
-      : null;
-
-    // Одна итерация с множественными проверками
-    filtered = filtered.filter((f) => {
-      // Проверка района
-      if (districtSet && !districtSet.has(f.properties?.district)) {
-        return false;
-      }
-      // Проверка риска
-      if (selectedRisks && !selectedRisks.has(f.properties?.GRI_class)) {
-        return false;
-      }
-      return true;
-    });
-
-    console.log(
-      "🔍 Filtered geo risk data:",
-      filtered.length,
-      "features (from",
-      geoRiskData.features.length,
-      "total)"
-    );
-
-    return {
-      type: "FeatureCollection",
-      features: filtered,
-    };
-  }, [geoRiskData, filters.districts, filters.riskLevels, riskLabelMap]);
-
-  // Add geo risk layer from local GeoJSON AFTER geostructures are loaded
-  useEffect(() => {
-    // Упрощенный лог для меньшего шума
-    if (!mapRef.current || !mapLoaded || !geoStructsLoaded || !geoRiskData) {
-      return; // Тихо выходим если условия не выполнены
-    }
-
-    // Skip if layer already created (prevent recreation)
-    if (geoRiskLayerCreatedRef.current) {
-      return; // Тихо выходим если слой уже создан
-    }
-
-    // Mark as creating immediately to prevent duplicate calls
-    geoRiskLayerCreatedRef.current = true;
-    console.log("�️ Creating geo risk layer...");
 
     const map = mapRef.current;
 
-    const addGeoRiskLayer = () => {
+    console.log("🗺️ Loading geo risk data from API...");
+
+    const loadGeoRiskData = async () => {
       if (!map.isStyleLoaded()) {
-        console.log("⏳ Style not ready for geo risk layer, retrying...");
-        setTimeout(addGeoRiskLayer, 100);
+        console.log("⏳ Style not ready for geo risk, retrying...");
+        setTimeout(loadGeoRiskData, 100);
         return;
       }
 
-      const renderStart = performance.now();
-      console.log("⏱️ [TIMING] Starting geo risk layer rendering...");
+      const startTime = performance.now();
 
       try {
-        // Clean up existing layers/sources with safety checks
-        const cleanupStart = performance.now();
-        if (map.getLayer && map.getLayer("geoRisk-outline")) {
-          map.removeLayer("geoRisk-outline");
-        }
+        // Clean up existing layers/sources
         if (map.getLayer && map.getLayer("geoRisk-fill")) {
           map.removeLayer("geoRisk-fill");
         }
         if (map.getSource && map.getSource("geoRisk")) {
           map.removeSource("geoRisk");
         }
-        const cleanupEnd = performance.now();
-        console.log(
-          `⏱️ [TIMING] Layer cleanup: ${(cleanupEnd - cleanupStart).toFixed(
-            2
-          )}ms`
-        );
       } catch (e) {
         console.warn("Error during layer cleanup:", e);
       }
 
-      // Get filtered data
-      const filterStart = performance.now();
-      const filteredData = getFilteredGeoRiskData();
-      const filterEnd = performance.now();
-      console.log(
-        `⏱️ [TIMING] Data filtering: ${(filterEnd - filterStart).toFixed(
-          2
-        )}ms (${filteredData.features.length} features)`
-      );
+      try {
+        // Build query based on current filters
+        const query = buildQuery();
+        
+        // ВАЖНО: Запрашиваем огромный page_size чтобы получить все данные за 1 запрос
+        const pageSize = 500000; // Больше чем 388k features
+        const separator = query ? '&' : '?';
+        const apiUrl = `https://admin.smartalmaty.kz/api/v1/address/clickhouse/geo-risk${query}${separator}page_size=${pageSize}`;
 
-      // DEBUG: Check data structure
-      if (filteredData.features.length > 0) {
-        const sample = filteredData.features[0];
-        console.log("🗺️ SAMPLE FEATURE TO MAP:", {
-          hasGeometry: !!sample.geometry,
-          geometryType: sample.geometry?.type,
-          hasProperties: !!sample.properties,
-          hasColorGRI: !!sample.properties?.color_GRI,
-          colorValue: sample.properties?.color_GRI,
-          allProps: sample.properties,
-        });
-      }
+        console.log("📡 Fetching from:", apiUrl);
+        console.log("⏱️ [TIMING] Starting fetch...");
 
-      // Add GeoJSON source with AGGRESSIVE performance optimizations
-      const sourceStart = performance.now();
-      map.addSource("geoRisk", {
-        type: "geojson",
-        data: filteredData,
-        buffer: 0, // No buffer for fastest performance
-        tolerance: 2.5, // Более агрессивное упрощение (было 1.5, default 0.375)
-        maxzoom: 16, // Generate tiles up to zoom 16
-        lineMetrics: false, // Disable if not needed
-        generateId: true, // Use auto-generated IDs for better performance
-      });
-      const sourceEnd = performance.now();
-      console.log(
-        `⏱️ [TIMING] Source creation: ${(sourceEnd - sourceStart).toFixed(2)}ms`
-      );
+        const fetchStart = performance.now();
+        const response = await fetch(apiUrl);
+        const fetchEnd = performance.now();
+        console.log(
+          `⏱️ [TIMING] Network request: ${(fetchEnd - fetchStart).toFixed(0)}ms`
+        );
 
-      // Add tile layer BEFORE the first geoStruct layer (so geostructs render on top)
-      const firstGeoStructLayer = map.getLayer("fault-fill")
-        ? "fault-fill"
-        : map.getLayer("struct-lines")
-        ? "struct-lines"
-        : map.getLayer("struct-points")
-        ? "struct-points"
-        : undefined;
-
-      const layerStart = performance.now();
-      map.addLayer(
-        {
-          id: "geoRisk-fill",
-          type: "fill",
-          source: "geoRisk",
-          paint: {
-            "fill-color": [
-              "case",
-              ["has", "color_GRI"],
-              ["get", "color_GRI"],
-              "#33a456",
-            ],
-            "fill-opacity": 0.6, // Constant 60% opacity - ALWAYS VISIBLE
-          },
-          // NO minzoom - visible at ALL zoom levels!
-        },
-        firstGeoStructLayer
-      ); // Insert before first geoStruct layer
-
-      // Add outline layer for better visibility
-      map.addLayer(
-        {
-          id: "geoRisk-outline",
-          type: "line",
-          source: "geoRisk",
-          paint: {
-            "line-color": "#ffffff",
-            "line-width": [
-              "interpolate",
-              ["linear"],
-              ["zoom"],
-              6,
-              0.3,
-              10,
-              0.6,
-              14,
-              1.0,
-              18,
-              1.5,
-            ],
-            "line-opacity": 0.4,
-          },
-          // NO minzoom - visible at ALL zoom levels!
-        },
-        firstGeoStructLayer
-      );
-
-      const layerEnd = performance.now();
-      console.log(
-        `⏱️ [TIMING] Layer creation: ${(layerEnd - layerStart).toFixed(2)}ms`
-      );
-
-      // Attach popup handlers
-      map.on("click", "geoRisk-fill", (e) => {
-        if (e.features && e.features.length > 0) {
-          const props = e.features[0].properties;
-          new maplibregl.Popup()
-            .setLngLat(e.lngLat)
-            .setHTML(
-              `
-              <div style="padding: 8px;">
-                <h3 style="margin: 0 0 8px 0; font-weight: bold;">Геориск</h3>
-                <p style="margin: 4px 0;"><strong>Класс риска:</strong> ${
-                  props.GRI_class || "N/A"
-                }</p>
-                <p style="margin: 4px 0;"><strong>Район:</strong> ${
-                  props.district || "N/A"
-                }</p>
-                <p style="margin: 4px 0;"><strong>Население:</strong> ${
-                  props.total_population || 0
-                }</p>
-              </div>
-            `
-            )
-            .addTo(map);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
-      });
 
-      map.on("mouseenter", "geoRisk-fill", () => {
-        map.getCanvas().style.cursor = "pointer";
-      });
-
-      map.on("mouseleave", "geoRisk-fill", () => {
-        map.getCanvas().style.cursor = "";
-      });
-
-      const renderEnd = performance.now();
-      const totalRenderTime = renderEnd - renderStart;
-      const totalTime = loadStartTimeRef.current
-        ? renderEnd - loadStartTimeRef.current
-        : null;
-
-      console.log(
-        `✅ Geo risk layer added from local GeoJSON UNDER geostructs`
-      );
-      console.log(
-        `⏱️ [TIMING] Total render time: ${totalRenderTime.toFixed(2)}ms`
-      );
-      if (totalTime) {
+        const parseStart = performance.now();
+        const data = await response.json();
+        const parseEnd = performance.now();
         console.log(
-          `⏱️ [TIMING] 🎉 TOTAL TIME (Load + Render): ${totalTime.toFixed(2)}ms`
+          `⏱️ [TIMING] JSON parsing: ${(parseEnd - parseStart).toFixed(0)}ms`
         );
-        console.log(`📊 [PERFORMANCE BREAKDOWN]`);
         console.log(
-          `  - File loading: ${loadStartTimeRef.current ? "completed" : "N/A"}`
+          `📦 Received ${data.features?.length || 0} features (total in DB: ${
+            data.count || 0
+          })`
         );
-        console.log(`  - Rendering: ${totalRenderTime.toFixed(2)}ms`);
-        console.log(`  - Grand Total: ${totalTime.toFixed(2)}ms`);
+
+        if (!data.features || data.features.length === 0) {
+          console.warn("⚠️ No features in response");
+          return;
+        }
+
+        // OPTIMIZATION: Упростить геометрию на фронте для быстрого рендера
+        const simplifyStart = performance.now();
+        const simplifiedFeatures = data.features.map((feature, idx) => {
+          // Progress indicator каждые 50k features
+          if (idx % 50000 === 0 && idx > 0) {
+            console.log(
+              `  ...simplifying ${idx}/${data.features.length} features`
+            );
+          }
+
+          if (!feature.geometry || !feature.geometry.coordinates)
+            return feature;
+
+          // Упрощение координат (3 знака после запятой = ~111м точность)
+          const simplifyCoords = (coords) => {
+            if (typeof coords[0] === "number") {
+              return [
+                Math.round(coords[0] * 1000) / 1000,
+                Math.round(coords[1] * 1000) / 1000,
+              ];
+            }
+            return coords.map(simplifyCoords);
+          };
+
+          // Минимизируем properties (только нужные поля)
+          return {
+            type: feature.type,
+            geometry: {
+              type: feature.geometry.type,
+              coordinates: simplifyCoords(feature.geometry.coordinates),
+            },
+            properties: {
+              GRI_class: feature.properties.GRI_class,
+              color_GRI: feature.properties.color_GRI,
+              district: feature.properties.district,
+              address: feature.properties.address,
+            },
+          };
+        });
+        const simplifyEnd = performance.now();
+        console.log(
+          `⏱️ [TIMING] Simplification: ${(simplifyEnd - simplifyStart).toFixed(
+            0
+          )}ms`
+        );
+
+        const simplifiedData = {
+          type: "FeatureCollection",
+          features: simplifiedFeatures,
+        };
+
+        // Add GeoJSON source
+        const sourceStart = performance.now();
+        map.addSource("geoRisk", {
+          type: "geojson",
+          data: simplifiedData,
+          tolerance: 1.5, // Агрессивное упрощение
+          buffer: 0,
+          generateId: true,
+        });
+        const sourceEnd = performance.now();
+        console.log(
+          `⏱️ [TIMING] Source creation: ${(sourceEnd - sourceStart).toFixed(
+            0
+          )}ms`
+        );
+
+        // Add tile layer BEFORE the first geoStruct layer
+        const firstGeoStructLayer = map.getLayer("fault-fill")
+          ? "fault-fill"
+          : map.getLayer("struct-lines")
+          ? "struct-lines"
+          : map.getLayer("struct-points")
+          ? "struct-points"
+          : undefined;
+
+        const layerStart = performance.now();
+        map.addLayer(
+          {
+            id: "geoRisk-fill",
+            type: "fill",
+            source: "geoRisk",
+            paint: {
+              "fill-color": [
+                "case",
+                ["has", "color_GRI"],
+                ["get", "color_GRI"],
+                "#33a456",
+              ],
+              "fill-opacity": 0.45,
+            },
+          },
+          firstGeoStructLayer
+        );
+        const layerEnd = performance.now();
+        console.log(
+          `⏱️ [TIMING] Layer creation: ${(layerEnd - layerStart).toFixed(0)}ms`
+        );
+
+        // Attach popup handlers
+        map.on("click", "geoRisk-fill", (e) => {
+          if (e.features && e.features.length > 0) {
+            const props = e.features[0].properties;
+            new maplibregl.Popup()
+              .setLngLat(e.lngLat)
+              .setHTML(
+                `
+                <div style="padding: 8px;">
+                  <h3 style="margin: 0 0 8px 0; font-weight: bold;">${
+                    props.address || "Геориск"
+                  }</h3>
+                  <p style="margin: 4px 0;"><strong>Класс риска:</strong> ${
+                    props.GRI_class || "N/A"
+                  }</p>
+                  <p style="margin: 4px 0;"><strong>Район:</strong> ${
+                    props.district || "N/A"
+                  }</p>
+                </div>
+              `
+              )
+              .addTo(map);
+          }
+        });
+
+        map.on("mouseenter", "geoRisk-fill", () => {
+          map.getCanvas().style.cursor = "pointer";
+        });
+
+        map.on("mouseleave", "geoRisk-fill", () => {
+          map.getCanvas().style.cursor = "";
+        });
+
+        const totalElapsed = ((performance.now() - startTime) / 1000).toFixed(
+          1
+        );
+        console.log(`✅ 🎉 TOTAL TIME: ${totalElapsed}s`);
+        console.log(`📊 Performance breakdown:`);
+        console.log(
+          `  - Network: ${((fetchEnd - fetchStart) / 1000).toFixed(1)}s`
+        );
+        console.log(
+          `  - Parsing: ${((parseEnd - parseStart) / 1000).toFixed(1)}s`
+        );
+        console.log(
+          `  - Simplify: ${((simplifyEnd - simplifyStart) / 1000).toFixed(1)}s`
+        );
+        console.log(
+          `  - Source: ${((sourceEnd - sourceStart) / 1000).toFixed(1)}s`
+        );
+        console.log(
+          `  - Layer: ${((layerEnd - layerStart) / 1000).toFixed(1)}s`
+        );
+
+        const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
+        console.log(`✅ Geo risk data loaded in ${elapsed}s`);
+      } catch (error) {
+        console.error("❌ Failed to load geo risk data:", error);
       }
+          ? "fault-fill"
+          : map.getLayer("struct-lines")
+          ? "struct-lines"
+          : map.getLayer("struct-points")
+          ? "struct-points"
+          : undefined;
 
-      console.log("✅ Layer creation completed successfully");
+        map.addLayer(
+          {
+            id: "geoRisk-fill",
+            type: "fill",
+            source: "geoRisk",
+            paint: {
+              "fill-color": [
+                "case",
+                ["has", "color_GRI"],
+                ["get", "color_GRI"],
+                "#33a456",
+              ],
+              "fill-opacity": 0.45,
+            },
+          },
+          firstGeoStructLayer
+        );
+
+        // Attach popup handlers
+        map.on("click", "geoRisk-fill", (e) => {
+          if (e.features && e.features.length > 0) {
+            const props = e.features[0].properties;
+            new maplibregl.Popup()
+              .setLngLat(e.lngLat)
+              .setHTML(
+                `
+                <div style="padding: 8px;">
+                  <h3 style="margin: 0 0 8px 0; font-weight: bold;">${
+                    props.address || "Геориск"
+                  }</h3>
+                  <p style="margin: 4px 0;"><strong>Класс риска:</strong> ${
+                    props.GRI_class || "N/A"
+                  }</p>
+                  <p style="margin: 4px 0;"><strong>Район:</strong> ${
+                    props.district || "N/A"
+                  }</p>
+                </div>
+              `
+              )
+              .addTo(map);
+          }
+        });
+
+        map.on("mouseenter", "geoRisk-fill", () => {
+          map.getCanvas().style.cursor = "pointer";
+        });
+
+        map.on("mouseleave", "geoRisk-fill", () => {
+          map.getCanvas().style.cursor = "";
+        });
+
+        const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
+        console.log(`✅ Geo risk data loaded in ${elapsed}s`);
+      } catch (error) {
+        console.error("❌ Failed to load geo risk data:", error);
+      }
     };
 
-    const timeoutId = setTimeout(addGeoRiskLayer, 100);
-
-    return () => {
-      clearTimeout(timeoutId);
-      // Note: We don't reset geoRiskLayerCreatedRef here because
-      // the layer should persist until style change or component unmount
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mapLoaded, geoStructsLoaded, geoRiskData]); // Stable dependencies to prevent recreation
-
-  // Update geo risk data when filters change OR when new chunks arrive
-  useEffect(() => {
-    // Skip if layer hasn't been created yet
-    if (
-      !geoRiskLayerCreatedRef.current ||
-      !mapRef.current ||
-      !mapLoaded ||
-      !geoRiskData
-    ) {
-      return; // Тихо выходим
-    }
-
-    const map = mapRef.current;
-
-    const updateGeoRiskData = () => {
-      if (!map.isStyleLoaded()) {
-        setTimeout(updateGeoRiskData, 100);
-        return;
-      }
-
-      const source = map.getSource("geoRisk");
-      if (source) {
-        const updateStart = performance.now();
-
-        const filteredData = getFilteredGeoRiskData();
-        source.setData(filteredData);
-
-        const updateEnd = performance.now();
-        console.log(
-          `🔄 Updated map: ${filteredData.features.length} features in ${(
-            updateEnd - updateStart
-          ).toFixed(0)}ms`
-        );
-      }
-    };
-
-    // Небольшая задержка для batching обновлений (дольше чтобы накопить несколько chunks)
-    const timeoutId = setTimeout(updateGeoRiskData, 200);
+    const timeoutId = setTimeout(loadGeoRiskData, 100);
     return () => clearTimeout(timeoutId);
   }, [
     filters.districts,
     filters.riskLevels,
+    buildQuery,
     mapLoaded,
-    geoRiskData,
-    getFilteredGeoRiskData,
+    geoStructsLoaded,
   ]);
 
   // Update layer visibility and filters
@@ -1204,26 +1040,6 @@ export default function GeoRiskMapDashboard({
         className="absolute inset-0 w-full h-full"
         style={{ minHeight: "100vh" }}
       />
-
-      {/* Loading Progress Indicator */}
-      {loadingProgress > 0 && loadingProgress < 100 && (
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white rounded-lg shadow-lg px-6 py-3 z-50">
-          <div className="flex items-center gap-3">
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-            <div>
-              <div className="text-sm font-medium text-gray-900">
-                {loadingMessage}
-              </div>
-              <div className="w-48 bg-gray-200 rounded-full h-2 mt-1">
-                <div
-                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${loadingProgress}%` }}
-                ></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       <MapLegend />
     </div>
