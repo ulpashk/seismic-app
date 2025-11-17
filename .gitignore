@@ -24,3 +24,4 @@ yarn-error.log*
 
 .env
 /geo_risk.geojson
+/public/geo_risk.geojson
