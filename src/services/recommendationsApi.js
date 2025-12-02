@@ -1,11 +1,19 @@
 /**
  * API service for building recommendations
- * Работает с PBF тайлами для карт и пытается найти JSON API для таблиц
+ * Работает с PBF тайлами Mapbox Vector Tiles
+ *
+ * ⚠️ ВАЖНО: Бэкенд предоставляет данные ТОЛЬКО через PBF тайлы
+ * https://admin.smartalmaty.kz/api/v1/address/clickhouse/building-risk-tile/{z}/{x}/{y}.pbf
+ * Фильтр: measure_category=demolition|passportization|strengthening
+ *
+ * JSON API для списка зданий НЕ СУЩЕСТВУЕТ!
+ * Для таблиц нужно либо:
+ * 1. Попросить бэкенд создать JSON endpoint
+ * 2. Реализовать парсинг всех PBF тайлов (сложно)
  */
 
-const BASE_TILE_URL =
-  "https://admin.smartalmaty.kz/api/v1/address/clickhouse/building-risk-tile";
-const BASE_API_URL = "https://admin.smartalmaty.kz/api/v1/address";
+const BASE_API_URL = "https://admin.smartalmaty.kz/api/v1/address/clickhouse";
+const BASE_TILE_URL = `${BASE_API_URL}/building-risk-tile`;
 
 /**
  * Типы рекомендаций и соответствующие им measure_category
@@ -17,87 +25,35 @@ export const MEASURE_CATEGORIES = {
 };
 
 /**
- * Извлечь данные из PBF тайлов для отображения в таблицах
- * @param {string} measureCategory - категория мер
+ * ⚠️ JSON API для списка зданий НЕ СУЩЕСТВУЕТ!
+ *
+ * Данные доступны ТОЛЬКО через PBF тайлы:
+ * /api/v1/address/clickhouse/building-risk-tile/{z}/{x}/{y}.pbf?measure_category=CATEGORY
+ *
+ * Для отображения в таблицах нужно попросить бэкенд создать JSON endpoint:
+ * GET /building-risk?measure_category=CATEGORY&district=DISTRICT
+ *
+ * Который должен возвращать:
+ * [{ id, address, district, sri, h, v, e, ... }]
+ *
+ * @param {string} measureCategory - категория мер (demolition, passportization, strengthening)
  * @param {string} district - район (опционально)
- * @returns {Promise<Array>} - массив объектов зданий
+ * @returns {Promise<Array>} - массив объектов зданий (пока пустой)
  */
-export const extractDataFromPBF = async (measureCategory, district = null) => {
-  try {
-    console.log(`🔄 Извлечение данных из PBF для ${measureCategory}...`);
+export const fetchBuildingsData = async (measureCategory, district = null) => {
+  console.warn(`⚠️  JSON API НЕ СУЩЕСТВУЕТ!`);
+  console.warn(
+    `⚠️  Данные для "${measureCategory}" доступны ТОЛЬКО через PBF тайлы:`
+  );
+  console.warn(
+    `📍 ${BASE_TILE_URL}/{z}/{x}/{y}.pbf?measure_category=${measureCategory}`
+  );
+  console.warn(
+    `💡 Попросите бэкенд создать endpoint: GET /building-risk?measure_category=${measureCategory}`
+  );
 
-    // Симуляция извлечения данных из PBF тайлов
-    // В реальности здесь будет код для парсинга vector tiles
-    const mockData = generateMockDataFromPBF(measureCategory, district);
-
-    console.log(`✅ Извлечено ${mockData.length} записей из PBF тайлов`);
-    return mockData;
-  } catch (error) {
-    console.error(`❌ Ошибка извлечения данных из PBF:`, error);
-    throw new Error(
-      `Не удалось извлечь данные из PBF тайлов для ${measureCategory}`
-    );
-  }
-};
-
-/**
- * Генерация тестовых данных на основе категории
- * (заменяется на реальный парсинг PBF когда будет готов)
- */
-const generateMockDataFromPBF = (measureCategory, district) => {
-  const baseData = [
-    {
-      id: 1,
-      building_id: "BLD001",
-      address: "ул. Абая, 10",
-      district: district || "Алмалинский район",
-      risk_level: "Высокий",
-      measure_category: measureCategory,
-      recommended_action: getActionByCategory(measureCategory),
-      priority: "Высокий",
-      estimated_cost: 1500000,
-      deadline: "2024-06-01",
-    },
-    {
-      id: 2,
-      building_id: "BLD002",
-      address: "пр. Назарбаева, 45",
-      district: district || "Медеуский район",
-      risk_level: "Средний",
-      measure_category: measureCategory,
-      recommended_action: getActionByCategory(measureCategory),
-      priority: "Средний",
-      estimated_cost: 850000,
-      deadline: "2024-08-15",
-    },
-    {
-      id: 3,
-      building_id: "BLD003",
-      address: "ул. Толе би, 123",
-      district: district || "Бостандыкский район",
-      risk_level: "Низкий",
-      measure_category: measureCategory,
-      recommended_action: getActionByCategory(measureCategory),
-      priority: "Низкий",
-      estimated_cost: 400000,
-      deadline: "2024-12-01",
-    },
-  ];
-
-  return district
-    ? baseData.filter((item) =>
-        item.district.includes(district.replace(" район", ""))
-      )
-    : baseData;
-};
-
-const getActionByCategory = (category) => {
-  const actions = {
-    demolition: "Снос здания",
-    passportization: "Техническая паспортизация",
-    strengthening: "Усиление конструкций",
-  };
-  return actions[category] || "Общие рекомендации";
+  // Возвращаем пустой массив, так как JSON API не существует
+  return [];
 };
 
 /**
@@ -120,19 +76,16 @@ export function getTileUrl(measureCategory, district = null) {
 }
 
 /**
- * Получить рекомендации из PBF данных
+ * Получить рекомендации по категории
  */
 export async function fetchRecommendations(measureCategory, district = null) {
-  console.log(`🔄 Попытка получить ${measureCategory} рекомендации...`);
-
-  // Информируем о доступных PBF тайлах
-  const tileUrl = getTileUrl(measureCategory, district);
-  console.log(`📍 PBF тайлы доступны по: ${tileUrl}`);
+  console.log(`🔄 Запрос рекомендаций для категории: ${measureCategory}`);
 
   try {
-    // Извлекаем данные из PBF тайлов для таблиц
-    const data = await extractDataFromPBF(measureCategory, district);
-    console.log(`✅ Получено ${data.length} записей для ${measureCategory}`);
+    const data = await fetchBuildingsData(measureCategory, district);
+    console.log(
+      `✅ Получено ${data.length || 0} записей для ${measureCategory}`
+    );
     return data;
   } catch (error) {
     console.error(`❌ Ошибка получения данных:`, error);
@@ -164,24 +117,25 @@ export async function fetchStrengtheningRecommendations(district = null) {
 /**
  * Получить все типы рекомендаций сразу
  */
-export async function fetchAllRecommendations(options = {}) {
+export async function fetchAllRecommendations(district = null) {
   try {
     const [demolition, passportization, strengthening] = await Promise.all([
-      fetchDemolitionRecommendations(options),
-      fetchPassportizationRecommendations(options),
-      fetchStrengtheningRecommendations(options),
+      fetchDemolitionRecommendations(district),
+      fetchPassportizationRecommendations(district),
+      fetchStrengtheningRecommendations(district),
     ]);
 
     return {
       demolition,
       passportization,
       strengthening,
-      total: demolition.total + passportization.total + strengthening.total,
+      total:
+        (demolition?.length || 0) +
+        (passportization?.length || 0) +
+        (strengthening?.length || 0),
     };
   } catch (error) {
-    // Объединяем ошибки всех категорий
-    throw new Error(
-      `Нет JSON API для рекомендаций. Доступны только PBF тайлы: ${BASE_TILE_URL}/{z}/{x}/{y}.pbf?measure_category=CATEGORY`
-    );
+    console.error("❌ Ошибка получения всех рекомендаций:", error);
+    throw error;
   }
 }

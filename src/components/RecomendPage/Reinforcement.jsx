@@ -89,7 +89,7 @@ export default function Reinforcement({ filters = {} }) {
 
       {/* Table Header */}
       <div className="bg-white rounded-md mb-3 p-3 shadow-sm">
-        <div className="grid grid-cols-6 gap-2 text-xs font-medium text-gray-600">
+        <div className="grid grid-cols-5 gap-2 text-xs font-medium text-gray-600">
           <div className="flex items-center gap-1">
             <span>Адрес</span>
             <ArrowUpDown
@@ -97,39 +97,32 @@ export default function Reinforcement({ filters = {} }) {
               onClick={() => handleSort("address")}
             />
           </div>
-          <div className="flex items-center gap-1">
-            <span>Район</span>
+          <div className="flex items-center gap-1 justify-center">
+            <span>SRI</span>
             <ArrowUpDown
               className="w-3 h-3 cursor-pointer hover:text-blue-600"
-              onClick={() => handleSort("district")}
+              onClick={() => handleSort("sri")}
             />
           </div>
-          <div className="flex items-center gap-1">
-            <span>Уровень риска</span>
+          <div className="flex items-center gap-1 justify-center">
+            <span>H</span>
             <ArrowUpDown
               className="w-3 h-3 cursor-pointer hover:text-blue-600"
-              onClick={() => handleSort("risk_level")}
+              onClick={() => handleSort("h")}
             />
           </div>
-          <div className="flex items-center gap-1">
-            <span>Действие</span>
+          <div className="flex items-center gap-1 justify-center">
+            <span>E</span>
             <ArrowUpDown
               className="w-3 h-3 cursor-pointer hover:text-blue-600"
-              onClick={() => handleSort("recommended_action")}
+              onClick={() => handleSort("e")}
             />
           </div>
-          <div className="flex items-center gap-1">
-            <span>Стоимость</span>
+          <div className="flex items-center gap-1 justify-center">
+            <span>V</span>
             <ArrowUpDown
               className="w-3 h-3 cursor-pointer hover:text-blue-600"
-              onClick={() => handleSort("estimated_cost")}
-            />
-          </div>
-          <div className="flex items-center gap-1">
-            <span>Приоритет</span>
-            <ArrowUpDown
-              className="w-3 h-3 cursor-pointer hover:text-blue-600"
-              onClick={() => handleSort("priority")}
+              onClick={() => handleSort("v")}
             />
           </div>
         </div>
@@ -146,49 +139,24 @@ export default function Reinforcement({ filters = {} }) {
               key={building.id || index}
               className="bg-white rounded-md p-3 shadow-sm hover:shadow-md transition-shadow"
             >
-              <div className="grid grid-cols-6 gap-2 text-sm">
+              <div className="grid grid-cols-5 gap-2 text-sm">
                 <span
                   className="font-medium text-gray-700 truncate"
                   title={building.address}
                 >
                   {building.address}
                 </span>
-                <span
-                  className="text-gray-600 truncate"
-                  title={building.district}
-                >
-                  {building.district}
+                <span className="text-center text-gray-700">
+                  {building.sri?.toFixed(2) || "N/A"}
                 </span>
-                <span
-                  className={`text-center font-medium ${
-                    building.risk_level === "Высокий"
-                      ? "text-red-600"
-                      : building.risk_level === "Средний"
-                      ? "text-yellow-600"
-                      : "text-green-600"
-                  }`}
-                >
-                  {building.risk_level}
+                <span className="text-center text-gray-700">
+                  {building.h?.toFixed(2) || "N/A"}
                 </span>
-                <span
-                  className="text-gray-600 truncate"
-                  title={building.recommended_action}
-                >
-                  {building.recommended_action}
+                <span className="text-center text-gray-700">
+                  {building.e?.toFixed(2) || "N/A"}
                 </span>
-                <span className="text-right text-gray-700">
-                  {building.estimated_cost?.toLocaleString()} ₸
-                </span>
-                <span
-                  className={`text-center font-medium ${
-                    building.priority === "Высокий"
-                      ? "text-red-600"
-                      : building.priority === "Средний"
-                      ? "text-yellow-600"
-                      : "text-green-600"
-                  }`}
-                >
-                  {building.priority}
+                <span className="text-center text-gray-700">
+                  {building.v?.toFixed(2) || "N/A"}
                 </span>
               </div>
             </div>

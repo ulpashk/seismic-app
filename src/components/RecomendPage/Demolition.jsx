@@ -87,7 +87,7 @@ export default function Demolition({ filters = {} }) {
 
       {/* Table Header */}
       <div className="bg-white rounded-md mb-3 p-3 shadow-sm">
-        <div className="grid grid-cols-6 gap-2 text-xs font-medium text-gray-600">
+        <div className="grid grid-cols-5 gap-2 text-xs font-medium text-gray-600">
           <div className="flex items-center gap-1">
             <span>Адрес</span>
             <ArrowUpDown
@@ -95,36 +95,33 @@ export default function Demolition({ filters = {} }) {
               onClick={() => handleSort("address")}
             />
           </div>
-          <div className="flex items-center gap-1">
-            <span>Уровень риска</span>
+          <div className="flex items-center gap-1 justify-center">
+            <span>SRI</span>
             <ArrowUpDown
               className="w-3 h-3 cursor-pointer hover:text-blue-600"
-              onClick={() => handleSort("risk_level")}
+              onClick={() => handleSort("sri")}
             />
           </div>
-          <div className="flex items-center gap-1">
-            <span>Приоритет</span>
+          <div className="flex items-center gap-1 justify-center">
+            <span>H</span>
             <ArrowUpDown
               className="w-3 h-3 cursor-pointer hover:text-blue-600"
-              onClick={() => handleSort("priority")}
+              onClick={() => handleSort("h")}
             />
           </div>
-          <div className="flex items-center gap-1">
-            <span>Стоимость</span>
+          <div className="flex items-center gap-1 justify-center">
+            <span>E</span>
             <ArrowUpDown
               className="w-3 h-3 cursor-pointer hover:text-blue-600"
-              onClick={() => handleSort("estimated_cost")}
+              onClick={() => handleSort("e")}
             />
           </div>
-          <div className="flex items-center gap-1">
-            <span>Срок</span>
+          <div className="flex items-center gap-1 justify-center">
+            <span>V</span>
             <ArrowUpDown
               className="w-3 h-3 cursor-pointer hover:text-blue-600"
-              onClick={() => handleSort("deadline")}
+              onClick={() => handleSort("v")}
             />
-          </div>
-          <div className="text-center">
-            <span>Действие</span>
           </div>
         </div>
       </div>
@@ -140,35 +137,24 @@ export default function Demolition({ filters = {} }) {
               key={building.id || index}
               className="bg-white rounded-md p-3 shadow-sm"
             >
-              <div className="grid grid-cols-6 gap-2 text-sm">
+              <div className="grid grid-cols-5 gap-2 text-sm">
                 <span
                   className="font-medium text-gray-700 truncate"
                   title={building.address}
                 >
                   {building.address}
                 </span>
-                <span className="text-center">
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs ${
-                      building.risk_level === "Высокий"
-                        ? "bg-red-100 text-red-800"
-                        : building.risk_level === "Средний"
-                        ? "bg-yellow-100 text-yellow-800"
-                        : "bg-green-100 text-green-800"
-                    }`}
-                  >
-                    {building.risk_level}
-                  </span>
+                <span className="text-center text-gray-700">
+                  {building.sri?.toFixed(2) || "N/A"}
                 </span>
-                <span className="text-center">{building.priority}</span>
-                <span className="text-center">
-                  {building.estimated_cost?.toLocaleString()} ₸
+                <span className="text-center text-gray-700">
+                  {building.h?.toFixed(2) || "N/A"}
                 </span>
-                <span className="text-center">{building.deadline}</span>
-                <span className="text-center text-xs">
-                  <button className="text-blue-600 hover:text-blue-800">
-                    Детали
-                  </button>
+                <span className="text-center text-gray-700">
+                  {building.e?.toFixed(2) || "N/A"}
+                </span>
+                <span className="text-center text-gray-700">
+                  {building.v?.toFixed(2) || "N/A"}
                 </span>
               </div>
             </div>

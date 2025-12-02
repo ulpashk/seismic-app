@@ -65,7 +65,17 @@ export default function ClusterMap({ filters = {} }) {
     const map = mapRef.current;
     const tileUrl = getTileUrl(selectedCategory, filters.selectedDistrict);
 
+    console.log("🔄 Adding building layers...");
+    console.log("📍 Tile URL:", tileUrl);
+
     try {
+      // Удаляем существующие слои если есть
+      ["buildings-fill", "buildings-outline"].forEach((layerId) => {
+        if (map.getLayer(layerId)) {
+          map.removeLayer(layerId);
+        }
+      });
+
       // Проверяем, есть ли уже источник
       if (map.getSource("building-recommendations")) {
         map.removeSource("building-recommendations");
@@ -79,19 +89,27 @@ export default function ClusterMap({ filters = {} }) {
         maxzoom: 18,
       });
 
-      // Удаляем существующие слои если есть
-      ["buildings-fill", "buildings-outline"].forEach((layerId) => {
-        if (map.getLayer(layerId)) {
-          map.removeLayer(layerId);
-        }
-      });
+      // Пробуем разные варианты source-layer
+      // Часто в PBF тайлах слой называется "default" или совпадает с именем таблицы
+      const possibleLayers = [
+        "building_risk",
+        "default",
+        "buildings",
+        "building-risk",
+        "recommendations",
+      ];
+
+      console.log("🔍 Trying source layers:", possibleLayers);
+
+      // Используем первый вариант, но добавим обработчик ошибок
+      const sourceLayer = "default"; // Попробуем "default" - часто используется
 
       // Добавляем слой заливки зданий
       map.addLayer({
         id: "buildings-fill",
         type: "circle",
         source: "building-recommendations",
-        "source-layer": "building_risk",
+        "source-layer": sourceLayer,
         paint: {
           "circle-radius": {
             base: 1.5,
@@ -113,7 +131,7 @@ export default function ClusterMap({ filters = {} }) {
         id: "buildings-outline",
         type: "circle",
         source: "building-recommendations",
-        "source-layer": "building_risk",
+        "source-layer": sourceLayer,
         paint: {
           "circle-radius": {
             base: 1.5,
@@ -168,7 +186,65 @@ export default function ClusterMap({ filters = {} }) {
         map.getCanvas().style.cursor = "";
       });
 
+      // Добавляем обработчик загрузки источника для отладки
+      map.on("sourcedata", (e) => {
+        if (e.sourceId === "building-recommendations" && e.isSourceLoaded) {
+          console.log("✅ Source loaded:", e.sourceId);
+
+          // Проверяем, есть ли данные в тайле
+          const source = map.getSource("building-recommendations");
+          if (source) {
+            console.log("📦 Source details:", source);
+
+            // Пытаемся получить фичи с карты для всех возможных слоев
+            const layers = [
+              "building_risk",
+              "default",
+              "buildings",
+              "building-risk",
+              "recommendations",
+            ];
+            console.log("🔍 Checking for features in layers...");
+
+            // Проверяем фичи в каждом возможном слое
+            layers.forEach((layerName) => {
+              try {
+                const features = map.querySourceFeatures(
+                  "building-recommendations",
+                  {
+                    sourceLayer: layerName,
+                  }
+                );
+
+                if (features && features.length > 0) {
+                  console.log(
+                    `✅ FOUND ${features.length} features in layer: "${layerName}"`
+                  );
+                  console.log("Sample feature:", features[0]);
+                } else {
+                  console.log(`❌ No features in layer: "${layerName}"`);
+                }
+              } catch (err) {
+                console.warn(
+                  `⚠️ Error checking layer "${layerName}":`,
+                  err.message
+                );
+              }
+            });
+          }
+        }
+      });
+
+      // Обработчик ошибок загрузки тайлов
+      map.on("error", (e) => {
+        console.error("❌ Map error:", e);
+        if (e.error) {
+          console.error("Error details:", e.error);
+        }
+      });
+
       console.log("✅ Building layers added for category:", selectedCategory);
+      console.log("🔍 Source layer used:", sourceLayer);
     } catch (error) {
       console.error("❌ Error adding building layers:", error);
     }
@@ -183,6 +259,12 @@ export default function ClusterMap({ filters = {} }) {
 
   return (
     <div className="bg-[#d3e2ff] rounded-lg p-6">
+      {/* Временное уведомление о пустых тайлах */}
+      <div className="bg-yellow-50 border border-yellow-200 rounded-md px-4 py-3 mb-4 text-sm text-yellow-800">
+        ⚠️ <strong>Тайлы загружаются (200 OK), но содержат 0 объектов.</strong>{" "}
+        Проверьте данные на бэкенде.
+      </div>
+
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-800">
           Карта рекомендаций
