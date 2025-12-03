@@ -1,25 +1,13 @@
 ﻿import { useState, useEffect, useRef, useCallback } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import {
-  getTileUrl,
-  MEASURE_CATEGORIES,
-} from "../../services/recommendationsApi";
+import { getTileUrl } from "../../services/recommendationsApi";
+// import { debugPBFLayers, testCommonLayerNames } from "../../utils/pbfDebugger";
 
-export default function ClusterMap({ filters = {} }) {
+export default function ClusterMap() {
   const mapContainer = useRef(null);
   const mapRef = useRef(null);
-  const [selectedCategory, setSelectedCategory] = useState("demolition");
   const [mapLoaded, setMapLoaded] = useState(false);
-
-  const getCategoryColor = useCallback((category) => {
-    const colors = {
-      demolition: "#ef4444", // красный
-      passportization: "#3b82f6", // синий
-      strengthening: "#10b981", // зеленый
-    };
-    return colors[category] || "#6b7280";
-  }, []);
 
   // Инициализация карты
   useEffect(() => {
@@ -31,10 +19,15 @@ export default function ClusterMap({ filters = {} }) {
       container: mapContainer.current,
       style: `https://api.maptiler.com/maps/basic-v2/style.json?key=${API_KEY}`,
       center: [76.906, 43.198], // Алматы
-      zoom: 11,
+      zoom: 11, // Дефолтный зум
+      minZoom: 8, // Минимальный зум
+      maxZoom: 18, // Максимальный зум
       pitch: 0,
       bearing: 0,
-      antialias: true,
+      antialias: false, // Отключаем для лучшей производительности
+      // Оптимизации производительности
+      preserveDrawingBuffer: false,
+      failIfMajorPerformanceCaveat: true,
     });
 
     mapRef.current = map;
@@ -63,10 +56,9 @@ export default function ClusterMap({ filters = {} }) {
     if (!mapRef.current || !mapLoaded) return;
 
     const map = mapRef.current;
-    const tileUrl = getTileUrl(selectedCategory, filters.selectedDistrict);
+    const tileUrl = getTileUrl(null, null);
 
     console.log("🔄 Adding building layers...");
-    console.log("📍 Tile URL:", tileUrl);
 
     try {
       // Удаляем существующие слои если есть
@@ -85,88 +77,185 @@ export default function ClusterMap({ filters = {} }) {
       map.addSource("building-recommendations", {
         type: "vector",
         tiles: [tileUrl],
-        minzoom: 0,
-        maxzoom: 18,
+        minzoom: 11,
+        maxzoom: 16,
+        buffer: 0,
       });
 
-      // Пробуем разные варианты source-layer
-      // Часто в PBF тайлах слой называется "default" или совпадает с именем таблицы
-      const possibleLayers = [
-        "building_risk",
-        "default",
-        "buildings",
-        "building-risk",
-        "recommendations",
-      ];
+      // Отладка PBF тайлов (только логирование)
+      console.log("🔍 Using PBF layer: building_risk");
+      // debugPBFLayers(tileUrl); // Отключаем для стабильности
 
-      console.log("🔍 Trying source layers:", possibleLayers);
-
-      // Используем первый вариант, но добавим обработчик ошибок
-      const sourceLayer = "default"; // Попробуем "default" - часто используется
-
-      // Добавляем слой заливки зданий
+      // Убираем автоматическое тестирование слоев
+      // setTimeout(() => testCommonLayerNames(map, "building-recommendations"), 2000);      // Добавляем слой заливки зданий (полигоны)
       map.addLayer({
         id: "buildings-fill",
-        type: "circle",
+        type: "fill",
         source: "building-recommendations",
-        "source-layer": sourceLayer,
+        "source-layer": "building_risk", // НАЙДЕНО! Правильное имя слоя
+        minzoom: 11,
+        maxzoom: 22,
         paint: {
-          "circle-radius": {
-            base: 1.5,
-            stops: [
-              [10, 3],
-              [15, 8],
-              [20, 25],
+          // Используем данные из PBF для цветовой схемы
+          "fill-color": [
+            "case",
+            ["has", "sri_color"],
+            ["get", "sri_color"],
+            ["has", "cluster_color"],
+            ["get", "cluster_color"],
+            // Fallback: цвет по риску
+            [
+              "case",
+              [">=", ["get", "risk"], 0.8],
+              "#dc2626", // красный для высокого риска
+              [">=", ["get", "risk"], 0.5],
+              "#f59e0b", // оранжевый для среднего
+              [">=", ["get", "risk"], 0.3],
+              "#eab308", // желтый для низко-среднего
+              "#ef4444", // красный по умолчанию
             ],
-          },
-          "circle-color": getCategoryColor(selectedCategory),
-          "circle-opacity": 0.7,
-          "circle-stroke-width": 1,
-          "circle-stroke-color": "#ffffff",
+          ],
+          "fill-opacity": 0.7,
         },
       });
 
-      // Добавляем обводку
+      // Добавляем обводку полигонов
       map.addLayer({
         id: "buildings-outline",
-        type: "circle",
+        type: "line",
         source: "building-recommendations",
-        "source-layer": sourceLayer,
+        "source-layer": "building_risk", // НАЙДЕНО! Правильное имя слоя
+        minzoom: 13,
+        maxzoom: 22,
         paint: {
-          "circle-radius": {
+          "line-color": "#dc2626",
+          "line-width": {
             base: 1.5,
             stops: [
-              [10, 3],
-              [15, 8],
-              [20, 25],
+              [13, 0.5],
+              [15, 1],
+              [20, 2],
             ],
           },
-          "circle-color": "transparent",
-          "circle-stroke-width": 2,
-          "circle-stroke-color": getCategoryColor(selectedCategory),
-          "circle-opacity": 0,
+          "line-opacity": 0.8,
         },
       });
 
-      // Добавляем popup при клике
+      // Добавляем popup при клике на полигоны
       map.on("click", "buildings-fill", (e) => {
         if (e.features && e.features.length > 0) {
           const feature = e.features[0];
           const coordinates = e.lngLat;
-          const properties = feature.properties;
+          const props = feature.properties;
 
+          // Форматируем адрес
+          const address =
+            props.street && props.homenum
+              ? `${props.street}, ${props.homenum}`
+              : props.caption ||
+                `ID: ${props.id || props.building_id || "N/A"}`;
+
+          // Группируем данные по категориям для лучшего отображения
           const popupContent = `
-            <div style="font-size: 12px; max-width: 200px;">
-              <h4 style="margin: 0 0 8px 0; color: #1f2937; font-weight: 600;">
-                ${MEASURE_CATEGORIES[selectedCategory]}
-              </h4>
-              ${Object.entries(properties || {})
-                .filter(([key]) => !key.startsWith("_"))
-                .map(
-                  ([key, value]) =>
-                    `<div style="margin: 4px 0;"><strong>${key}:</strong> ${value}</div>`
-                )
-                .join("")}
+            <div style="font-size: 12px; max-width: 300px; line-height: 1.4;">
+              <div style="background: #ef4444; color: white; padding: 8px; margin: -8px -8px 8px -8px; border-radius: 4px 4px 0 0;">
+                <strong>Информация об объекте</strong>
+              </div>
+              
+              <!-- Адрес -->
+              <div style="margin-bottom: 8px;">
+                <div style="font-weight: 600; color: #1f2937;">${address}</div>
+                ${
+                  props.district
+                    ? `<div style="color: #6b7280; font-size: 11px;">${props.district}</div>`
+                    : ""
+                }
+              </div>
+
+              <!-- Сейсмические показатели -->
+              <div style="background: #f8f9fa; padding: 6px; border-radius: 4px; margin-bottom: 6px;">
+                <div style="font-weight: 600; margin-bottom: 4px; color: #495057;">Сейсмические показатели:</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 11px;">
+                  ${
+                    props.h !== undefined
+                      ? `<div><strong>H:</strong> ${Number(props.h).toFixed(
+                          2
+                        )}</div>`
+                      : ""
+                  }
+                  ${
+                    props.v !== undefined
+                      ? `<div><strong>V:</strong> ${Number(props.v).toFixed(
+                          2
+                        )}</div>`
+                      : ""
+                  }
+                  ${
+                    props.e !== undefined
+                      ? `<div><strong>E:</strong> ${Number(props.e).toFixed(
+                          2
+                        )}</div>`
+                      : ""
+                  }
+                  ${
+                    props.risk !== undefined
+                      ? `<div><strong>Риск:</strong> ${Number(
+                          props.risk
+                        ).toFixed(2)}</div>`
+                      : ""
+                  }
+                </div>
+              </div>
+
+              <!-- Характеристики здания -->
+              <div style="background: #f8f9fa; padding: 6px; border-radius: 4px; margin-bottom: 6px;">
+                <div style="font-weight: 600; margin-bottom: 4px; color: #495057;">Характеристики:</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 11px;">
+                  ${
+                    props.floor !== undefined
+                      ? `<div><strong>Этажей:</strong> ${props.floor}</div>`
+                      : ""
+                  }
+                  ${
+                    props.area_m2 !== undefined
+                      ? `<div><strong>Площадь:</strong> ${Number(
+                          props.area_m2
+                        ).toFixed(0)} м²</div>`
+                      : ""
+                  }
+                  ${
+                    props.is_emergency_building !== undefined
+                      ? `<div><strong>Аварийное:</strong> ${
+                          props.is_emergency_building ? "Да" : "Нет"
+                        }</div>`
+                      : ""
+                  }
+                  ${
+                    props.is_passport !== undefined
+                      ? `<div><strong>Паспорт:</strong> ${
+                          props.is_passport ? "Есть" : "Нет"
+                        }</div>`
+                      : ""
+                  }
+                </div>
+              </div>
+
+              <!-- Информация о кластере -->
+              <div style="background: #e3f2fd; padding: 6px; border-radius: 4px; font-size: 11px;">
+                <div style="font-weight: 600; margin-bottom: 4px; color: #1565c0;">Кластер:</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
+                  ${
+                    props.cluster_id !== undefined
+                      ? `<div><strong>ID:</strong> ${props.cluster_id}</div>`
+                      : ""
+                  }
+                  ${
+                    props.cluster_label !== undefined
+                      ? `<div><strong>Метка:</strong> ${props.cluster_label}</div>`
+                      : ""
+                  }
+                </div>
+              </div>
             </div>
           `;
 
@@ -177,7 +266,7 @@ export default function ClusterMap({ filters = {} }) {
         }
       });
 
-      // Меняем курсор при наведении
+      // Меняем курсор при наведении на полигоны
       map.on("mouseenter", "buildings-fill", () => {
         map.getCanvas().style.cursor = "pointer";
       });
@@ -186,69 +275,11 @@ export default function ClusterMap({ filters = {} }) {
         map.getCanvas().style.cursor = "";
       });
 
-      // Добавляем обработчик загрузки источника для отладки
-      map.on("sourcedata", (e) => {
-        if (e.sourceId === "building-recommendations" && e.isSourceLoaded) {
-          console.log("✅ Source loaded:", e.sourceId);
-
-          // Проверяем, есть ли данные в тайле
-          const source = map.getSource("building-recommendations");
-          if (source) {
-            console.log("📦 Source details:", source);
-
-            // Пытаемся получить фичи с карты для всех возможных слоев
-            const layers = [
-              "building_risk",
-              "default",
-              "buildings",
-              "building-risk",
-              "recommendations",
-            ];
-            console.log("🔍 Checking for features in layers...");
-
-            // Проверяем фичи в каждом возможном слое
-            layers.forEach((layerName) => {
-              try {
-                const features = map.querySourceFeatures(
-                  "building-recommendations",
-                  {
-                    sourceLayer: layerName,
-                  }
-                );
-
-                if (features && features.length > 0) {
-                  console.log(
-                    `✅ FOUND ${features.length} features in layer: "${layerName}"`
-                  );
-                  console.log("Sample feature:", features[0]);
-                } else {
-                  console.log(`❌ No features in layer: "${layerName}"`);
-                }
-              } catch (err) {
-                console.warn(
-                  `⚠️ Error checking layer "${layerName}":`,
-                  err.message
-                );
-              }
-            });
-          }
-        }
-      });
-
-      // Обработчик ошибок загрузки тайлов
-      map.on("error", (e) => {
-        console.error("❌ Map error:", e);
-        if (e.error) {
-          console.error("Error details:", e.error);
-        }
-      });
-
-      console.log("✅ Building layers added for category:", selectedCategory);
-      console.log("🔍 Source layer used:", sourceLayer);
+      console.log("✅ Building layers added");
     } catch (error) {
       console.error("❌ Error adding building layers:", error);
     }
-  }, [selectedCategory, filters.selectedDistrict, mapLoaded, getCategoryColor]);
+  }, [mapLoaded]);
 
   // Обновление слоев при изменении категории или фильтров
   useEffect(() => {
@@ -259,33 +290,10 @@ export default function ClusterMap({ filters = {} }) {
 
   return (
     <div className="bg-[#d3e2ff] rounded-lg p-6">
-      {/* Временное уведомление о пустых тайлах */}
-      <div className="bg-yellow-50 border border-yellow-200 rounded-md px-4 py-3 mb-4 text-sm text-yellow-800">
-        ⚠️ <strong>Тайлы загружаются (200 OK), но содержат 0 объектов.</strong>{" "}
-        Проверьте данные на бэкенде.
-      </div>
-
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-800">
           Карта рекомендаций
         </h3>
-
-        {/* Фильтр по категориям */}
-        <div className="flex gap-2">
-          {Object.entries(MEASURE_CATEGORIES).map(([key, label]) => (
-            <button
-              key={key}
-              onClick={() => setSelectedCategory(key)}
-              className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                selectedCategory === key
-                  ? "bg-blue-600 text-white"
-                  : "bg-white text-gray-600 hover:bg-blue-50"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
       </div>
 
       {/* Контейнер карты */}
@@ -304,43 +312,6 @@ export default function ClusterMap({ filters = {} }) {
             </div>
           </div>
         )}
-      </div>
-
-      {/* Легенда */}
-      <div className="mt-4 p-3 bg-white rounded-md">
-        <h4 className="text-sm font-medium text-gray-700 mb-2">Легенда</h4>
-        <div className="flex flex-wrap gap-4 text-xs">
-          {Object.entries(MEASURE_CATEGORIES).map(([key, label]) => (
-            <div key={key} className="flex items-center gap-2">
-              <div
-                className="w-3 h-3 rounded-full"
-                style={{ backgroundColor: getCategoryColor(key) }}
-              ></div>
-              <span className="text-gray-600">{label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Информация о текущем URL */}
-      <div className="mt-2 p-2 bg-gray-50 rounded text-xs text-gray-500">
-        <details>
-          <summary className="cursor-pointer hover:text-gray-700">
-            Информация о PBF тайлах
-          </summary>
-          <div className="mt-2">
-            <p className="mb-1">Текущий URL:</p>
-            <code className="block bg-white p-2 rounded text-xs border">
-              {getTileUrl(selectedCategory, filters.selectedDistrict)}
-            </code>
-            {filters.selectedDistrict && (
-              <p className="mt-1">
-                📍 Фильтрация по району:{" "}
-                <strong>{filters.selectedDistrict}</strong>
-              </p>
-            )}
-          </div>
-        </details>
       </div>
     </div>
   );

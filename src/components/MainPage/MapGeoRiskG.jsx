@@ -563,129 +563,80 @@ export default function GeoRiskMapDashboard({
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [loadingMessage, setLoadingMessage] = useState("");
   const loadStartTimeRef = useRef(null);
-  const geoRiskLayerCreatedRef = useRef(false); // Track if layer was created
-  const workerRef = useRef(null);
-  const accumulatedFeaturesRef = useRef([]);
+  const geoRiskLayerCreatedRef = useRef(false);
 
-  // Load geo risk data using Web Worker for better performance
+  // STREAMING: Load file and display progressively
   useEffect(() => {
-    // Создаем Worker
-    workerRef.current = new Worker("/geoWorker.js");
+    const loadData = async () => {
+      loadStartTimeRef.current = performance.now();
+      console.log("⏱️ Starting streaming load from file...");
 
-    loadStartTimeRef.current = performance.now();
-    console.log("⏱️ [TIMING] Starting geo_risk.geojson loading with Worker...");
-    setLoadingMessage("Загрузка данных...");
+      const allFeatures = [];
+      let displayedCount = 0;
+      const CHUNK_SIZE = 500; // Показываем каждые 500 features
 
-    // Обработчик сообщений от Worker
-    workerRef.current.onmessage = (e) => {
-      const {
-        type,
-        chunk,
-        chunkIndex,
-        totalChunks,
-        isLast,
-        progress,
-        message,
-        totalFeatures,
-        totalTime,
-        error,
-      } = e.data;
+      try {
+        const response = await fetch("/geo_risk.geojson");
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-      if (type === "PROGRESS") {
-        setLoadingProgress(progress);
-        setLoadingMessage(message);
-        console.log(`🔄 ${message}`);
-      } else if (type === "CHUNK_READY") {
-        // Накапливаем features из chunks
-        accumulatedFeaturesRef.current.push(...chunk);
-
-        const currentProgress = Math.round(
-          ((chunkIndex + 1) / totalChunks) * 100
-        );
-        setLoadingProgress(currentProgress);
-        setLoadingMessage(`Отрисовка: ${currentProgress}%`);
-
-        // DEBUG: Check first feature
-        if (chunkIndex === 0 && chunk[0]) {
-          console.log("🔍 FIRST FEATURE:", chunk[0].properties);
-        }
-
-        // Логируем только каждый 10-й chunk для уменьшения шума
-        if ((chunkIndex + 1) % 10 === 0 || isLast) {
-          console.log(
-            `📦 Chunk ${chunkIndex + 1}/${totalChunks} ready (${
-              chunk.length
-            } features, total: ${accumulatedFeaturesRef.current.length})`
-          );
-        }
-
-        // Обновляем данные каждые 5 chunks ИЛИ на последнем для оптимальной производительности
-        if ((chunkIndex + 1) % 5 === 0 || isLast) {
-          const geoData = {
-            type: "FeatureCollection",
-            features: [...accumulatedFeaturesRef.current],
-          };
-
-          // DEBUG: Check data structure before setting
-          if (chunkIndex === 4) {
-            console.log("📊 FIRST UPDATE:", {
-              totalFeatures: geoData.features.length,
-              hasColor: geoData.features
-                .slice(0, 3)
-                .map((f) => f.properties?.color_GRI),
-            });
-          }
-
-          setGeoRiskData(geoData);
-        }
-
-        if (isLast) {
-          const renderEnd = performance.now();
-          const totalElapsed = renderEnd - loadStartTimeRef.current;
-          console.log(
-            `✅ All chunks rendered! Total features: ${accumulatedFeaturesRef.current.length}`
-          );
-          console.log(
-            `⏱️ [TIMING] 🎉 TOTAL TIME (Worker + Render): ${totalElapsed.toFixed(
-              2
-            )}ms`
-          );
-          setLoadingMessage("Готово!");
-          setTimeout(() => {
-            setLoadingProgress(0);
-            setLoadingMessage("");
-          }, 1000);
-        }
-      } else if (type === "COMPLETE") {
+        const text = await response.text();
         console.log(
-          `✅ Worker completed: ${totalFeatures} features in ${totalTime}ms`
+          `📥 Downloaded ${(text.length / 1024 / 1024).toFixed(1)} MB`
         );
-      } else if (type === "ERROR") {
-        console.error("❌ Worker error:", error);
+
+        setLoadingMessage("Парсинг данных...");
+
+        // Парсим JSON
+        const data = JSON.parse(text);
+        console.log(`✅ Parsed ${data.features?.length || 0} features`);
+
+        if (!data.features) {
+          throw new Error("No features in file");
+        }
+
+        const totalFeatures = data.features.length;
+
+        // Постепенно добавляем features
+        for (let i = 0; i < totalFeatures; i += CHUNK_SIZE) {
+          const chunk = data.features.slice(i, i + CHUNK_SIZE);
+          allFeatures.push(...chunk);
+
+          // Обновляем карту каждые CHUNK_SIZE features
+          setGeoRiskData({
+            type: "FeatureCollection",
+            features: [...allFeatures],
+          });
+
+          displayedCount += chunk.length;
+          const progress = Math.round((displayedCount / totalFeatures) * 100);
+          setLoadingProgress(progress);
+          setLoadingMessage(`Отображено: ${displayedCount} / ${totalFeatures}`);
+
+          console.log(
+            `📊 Displayed ${displayedCount} / ${totalFeatures} (${progress}%)`
+          );
+
+          // Даем браузеру время на рендеринг
+          await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+
+        const totalTime = performance.now() - loadStartTimeRef.current;
+        console.log(
+          `🎉 Complete! ${totalFeatures} features in ${(
+            totalTime / 1000
+          ).toFixed(1)}s`
+        );
+
+        setLoadingProgress(0);
+        setLoadingMessage("");
+      } catch (error) {
+        console.error("❌ Error:", error);
         setGeoRiskData({ type: "FeatureCollection", features: [] });
         setLoadingMessage("Ошибка загрузки");
-        setTimeout(() => {
-          setLoadingProgress(0);
-          setLoadingMessage("");
-        }, 2000);
       }
     };
 
-    // Запускаем Worker
-    workerRef.current.postMessage({
-      type: "PARSE_GEOJSON",
-      url: "/geo_risk.geojson",
-      chunkSize: 8000, // Оптимальный размер chunk для баланса скорости и плавности
-    });
-
-    // Cleanup
-    return () => {
-      if (workerRef.current) {
-        workerRef.current.terminate();
-        workerRef.current = null;
-      }
-      accumulatedFeaturesRef.current = [];
-    };
+    loadData();
   }, []);
 
   // Apply filters to geo risk data - OPTIMIZED
@@ -869,7 +820,7 @@ export default function GeoRiskMapDashboard({
               ["get", "color_GRI"],
               "#33a456",
             ],
-            "fill-opacity": 0.6, // Constant 60% opacity - ALWAYS VISIBLE
+            "fill-opacity": 0.7, // Constant 60% opacity - ALWAYS VISIBLE
           },
           // NO minzoom - visible at ALL zoom levels!
         },

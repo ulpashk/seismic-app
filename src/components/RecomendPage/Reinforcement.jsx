@@ -2,7 +2,7 @@ import { ArrowUpDown } from "lucide-react";
 import { useState, useEffect } from "react";
 import { fetchStrengtheningRecommendations } from "../../services/recommendationsApi";
 
-export default function Reinforcement({ filters = {} }) {
+export default function Reinforcement() {
   const [buildings, setBuildings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -15,9 +15,7 @@ export default function Reinforcement({ filters = {} }) {
         setLoading(true);
         setError(null);
 
-        const data = await fetchStrengtheningRecommendations(
-          filters.selectedDistrict
-        );
+        const data = await fetchStrengtheningRecommendations(null);
         setBuildings(data); // Данные приходят напрямую массивом
       } catch (err) {
         console.error("Error loading strengthening recommendations:", err);
@@ -28,7 +26,7 @@ export default function Reinforcement({ filters = {} }) {
     };
 
     loadData();
-  }, [filters]);
+  }, []);
 
   // Сортировка данных
   const handleSort = (key) => {
@@ -129,8 +127,31 @@ export default function Reinforcement({ filters = {} }) {
       </div>
 
       {sortedBuildings.length === 0 ? (
-        <div className="bg-white rounded-md p-6 text-center text-gray-500">
-          Нет данных для отображения
+        <div className="bg-white rounded-md p-6 text-center">
+          <div className="text-blue-600 mb-3">
+            📊 <strong>Данные обновлены!</strong>
+          </div>
+          <div className="text-gray-600 text-sm mb-4">
+            Теперь система корректно обрабатывает все поля из PBF тайлов:
+            <br />
+            📍 Адрес (street, homenum), 🏗️ Характеристики здания, 📈
+            Сейсмические показатели
+          </div>
+          <div className="text-orange-600 text-sm mb-4">
+            ⚠️ <strong>Примечание:</strong> Для отображения в таблице
+            по-прежнему нужен JSON endpoint
+          </div>
+          <div className="text-xs text-gray-500 bg-gray-50 p-3 rounded border font-mono">
+            🔗 Требуется: GET
+            /api/v1/building-risk?measure_category=strengthening
+            <br />
+            📋 Поля: id, street, homenum, district, h, v, e, risk, floor,
+            area_m2, is_emergency_building, is_passport
+          </div>
+          <div className="mt-3 text-xs text-green-600">
+            ✅ Карта уже готова для отображения PBF данных с новой структурой
+            полей!
+          </div>
         </div>
       ) : (
         <div className="space-y-2 max-h-96 overflow-y-auto">
