@@ -4,10 +4,115 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { getTileUrl } from "../../services/recommendationsApi";
 // import { debugPBFLayers, testCommonLayerNames } from "../../utils/pbfDebugger";
 
-export default function ClusterMap() {
+export default function ClusterMap({ onBuildingsUpdate }) {
   const mapContainer = useRef(null);
   const mapRef = useRef(null);
   const [mapLoaded, setMapLoaded] = useState(false);
+
+  // Функция для извлечения видимых зданий с карты
+  const extractVisibleBuildings = useCallback(() => {
+    if (!mapRef.current || !mapRef.current.getLayer("buildings-fill")) return;
+
+    const map = mapRef.current;
+
+    try {
+      // Получаем все видимые features из слоя buildings-fill
+      const features = map.queryRenderedFeatures({
+        layers: ["buildings-fill"],
+      });
+
+      if (!features || features.length === 0) {
+        console.log("📭 Нет видимых зданий на карте");
+        return;
+      }
+
+      // Преобразуем features в формат для таблиц
+      const buildingsMap = new Map(); // Для дедупликации по id
+
+      features.forEach((feature, index) => {
+        const p = feature.properties || {};
+        const id = p.id || p.building_id || feature.id;
+
+        // Логируем первый feature для отладки
+        if (index === 0) {
+          console.log("📋 Пример properties из карты:", p);
+          console.log("📋 Все ключи:", Object.keys(p));
+          // Показываем все значения адресных полей
+          console.log("📋 Адресные поля:", {
+            street: p.street,
+            homenum: p.homenum,
+            caption: p.caption,
+            address: p.address,
+            name: p.name,
+            addr_street: p.addr_street,
+            building_address: p.building_address,
+            full_address: p.full_address,
+          });
+        }
+
+        // Пропускаем если уже есть
+        if (buildingsMap.has(id)) return;
+
+        // Формируем адрес из разных возможных полей
+        let address = "";
+        if (p.street && p.homenum) {
+          address = `${p.street}, ${p.homenum}`;
+        } else if (p.caption) {
+          address = p.caption;
+        } else if (p.address) {
+          address = p.address;
+        } else if (p.name) {
+          address = p.name;
+        } else if (p.full_address) {
+          address = p.full_address;
+        } else if (p.addr_street) {
+          address = p.addr_street;
+        } else if (p.building_address) {
+          address = p.building_address;
+        } else {
+          // Если нет адреса - пробуем сформировать из улицы
+          if (p.street) {
+            address = p.homenum ? `${p.street}, ${p.homenum}` : p.street;
+          } else {
+            address = `Здание #${id}`;
+          }
+        }
+
+        buildingsMap.set(id, {
+          id,
+          address,
+          street: p.street || null,
+          homenum: p.homenum || null,
+          district: p.district || null,
+          sri:
+            p.sri_viz !== undefined
+              ? Number(p.sri_viz)
+              : p.sri_x !== undefined
+              ? Number(p.sri_x)
+              : p.sri !== undefined
+              ? Number(p.sri)
+              : null,
+          h: p.h !== undefined ? Number(p.h) : null,
+          e: p.e !== undefined ? Number(p.e) : null,
+          v: p.v !== undefined ? Number(p.v) : null,
+          risk: p.risk !== undefined ? Number(p.risk) : null,
+          floor: p.floor || null,
+          area_m2: p.area_m2 !== undefined ? Number(p.area_m2) : null,
+          is_emergency_building: !!p.is_emergency_building,
+          is_passport: !!p.is_passport,
+        });
+      });
+
+      const buildings = Array.from(buildingsMap.values());
+      console.log(`🏢 Извлечено ${buildings.length} уникальных зданий с карты`);
+
+      if (onBuildingsUpdate) {
+        onBuildingsUpdate(buildings);
+      }
+    } catch (error) {
+      console.error("❌ Ошибка извлечения зданий:", error);
+    }
+  }, [onBuildingsUpdate]);
 
   // Инициализация карты
   useEffect(() => {
@@ -275,11 +380,23 @@ export default function ClusterMap() {
         map.getCanvas().style.cursor = "";
       });
 
+      // Добавляем события для извлечения данных при изменении области видимости
+      map.on("moveend", extractVisibleBuildings);
+      map.on("sourcedata", (e) => {
+        if (e.sourceId === "building-recommendations" && e.isSourceLoaded) {
+          // Небольшая задержка чтобы тайлы успели отрендериться
+          setTimeout(extractVisibleBuildings, 300);
+        }
+      });
+
+      // Первичное извлечение данных после добавления слоёв
+      setTimeout(extractVisibleBuildings, 500);
+
       console.log("✅ Building layers added");
     } catch (error) {
       console.error("❌ Error adding building layers:", error);
     }
-  }, [mapLoaded]);
+  }, [mapLoaded, extractVisibleBuildings]);
 
   // Обновление слоев при изменении категории или фильтров
   useEffect(() => {

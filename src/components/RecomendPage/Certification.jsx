@@ -1,139 +1,120 @@
-﻿import { useState, useEffect } from "react";
-import { fetchPassportizationRecommendations } from "../../services/recommendationsApi";
+﻿import { ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { useState, useMemo } from "react";
 
-export default function Certification() {
-  const [buildings, setBuildings] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+const PAGE_SIZE = 100;
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const data = await fetchPassportizationRecommendations(null);
-        setBuildings(data);
-      } catch (err) {
-        console.error("Error loading passportization recommendations:", err);
-        setError(err.message || "Ошибка при загрузке данных");
-      } finally {
-        setLoading(false);
+export default function Certification({ buildings = [], isLoading = false }) {
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
+  const [currentPage, setCurrentPage] = useState(0);
+
+  const handleSort = (key) => {
+    let direction = "asc";
+    if (sortConfig.key === key && sortConfig.direction === "asc") {
+      direction = "desc";
+    }
+    setSortConfig({ key, direction });
+    setCurrentPage(0);
+  };
+
+  const sortedBuildings = useMemo(() => {
+    return (buildings || []).slice().sort((a, b) => {
+      if (!sortConfig.key) return 0;
+      const aVal = a[sortConfig.key];
+      const bVal = b[sortConfig.key];
+      if (sortConfig.direction === "asc") {
+        return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+      } else {
+        return aVal > bVal ? -1 : aVal < bVal ? 1 : 0;
       }
-    };
+    });
+  }, [buildings, sortConfig]);
 
-    loadData();
-  }, []);
+  const totalPages = Math.ceil(sortedBuildings.length / PAGE_SIZE);
 
-  if (loading) {
+  const paginatedBuildings = useMemo(() => {
+    const start = currentPage * PAGE_SIZE;
+    return sortedBuildings.slice(start, start + PAGE_SIZE);
+  }, [sortedBuildings, currentPage]);
+
+  if (isLoading) {
     return (
-      <div className="bg-[#d3e2ff] rounded-lg p-6">
+      <div className="bg-[#ffe4c4] rounded-lg p-6">
         <h3 className="text-lg font-semibold mb-4 text-gray-800">
-          Рекомендованные здания на паспортизацию
+          На основе индекса SRI, рекомендованные здания на паспортизацию
         </h3>
         <div className="flex items-center justify-center h-32">
-          <div className="text-gray-600">Загрузка данных...</div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="bg-[#d3e2ff] rounded-lg p-6">
-        <h3 className="text-lg font-semibold mb-4 text-gray-800">
-          Рекомендованные здания на паспортизацию
-        </h3>
-        <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
-          <p className="text-yellow-800 text-sm">{error}</p>
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-600 mx-auto"></div>
+          <div className="text-gray-600 ml-2">Загрузка данных с карты...</div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-[#d3e2ff] rounded-lg p-6">
+    <div className="bg-[#ffe4c4] rounded-lg p-6">
       <h3 className="text-lg font-semibold mb-4 text-gray-800">
-        Рекомендованные здания на паспортизацию ({buildings.length})
+        На основе индекса SRI, рекомендованные здания на паспортизацию ({sortedBuildings.length.toLocaleString()})
       </h3>
 
-      {/* Table Header */}
       <div className="bg-white rounded-md mb-3 p-3 shadow-sm">
         <div className="grid grid-cols-5 gap-2 text-xs font-medium text-gray-600">
           <div className="flex items-center gap-1">
             <span>Адрес</span>
+            <ArrowUpDown className="w-3 h-3 cursor-pointer hover:text-orange-600" onClick={() => handleSort("address")} />
           </div>
           <div className="flex items-center gap-1 justify-center">
             <span>SRI</span>
+            <ArrowUpDown className="w-3 h-3 cursor-pointer hover:text-orange-600" onClick={() => handleSort("sri")} />
           </div>
           <div className="flex items-center gap-1 justify-center">
             <span>H</span>
+            <ArrowUpDown className="w-3 h-3 cursor-pointer hover:text-orange-600" onClick={() => handleSort("h")} />
           </div>
           <div className="flex items-center gap-1 justify-center">
             <span>E</span>
+            <ArrowUpDown className="w-3 h-3 cursor-pointer hover:text-orange-600" onClick={() => handleSort("e")} />
           </div>
           <div className="flex items-center gap-1 justify-center">
             <span>V</span>
+            <ArrowUpDown className="w-3 h-3 cursor-pointer hover:text-orange-600" onClick={() => handleSort("v")} />
           </div>
         </div>
       </div>
 
-      {buildings.length === 0 ? (
+      {sortedBuildings.length === 0 ? (
         <div className="bg-white rounded-md p-6 text-center">
-          <div className="text-blue-600 mb-3">
-            📊 <strong>Данные обновлены!</strong>
-          </div>
-          <div className="text-gray-600 text-sm mb-4">
-            Теперь система корректно обрабатывает все поля из PBF тайлов:
-            <br />
-            📍 Адрес (street, homenum), 🏗️ Характеристики здания, 📈
-            Сейсмические показатели
-          </div>
-          <div className="text-orange-600 text-sm mb-4">
-            ⚠️ <strong>Примечание:</strong> Для отображения в таблице
-            по-прежнему нужен JSON endpoint
-          </div>
-          <div className="text-xs text-gray-500 bg-gray-50 p-3 rounded border font-mono">
-            🔗 Требуется: GET
-            /api/v1/building-risk?measure_category=passportization
-            <br />
-            📋 Поля: id, street, homenum, district, h, v, e, risk, floor,
-            area_m2, is_emergency_building, is_passport
-          </div>
-          <div className="mt-3 text-xs text-green-600">
-            ✅ Карта уже готова для отображения PBF данных с новой структурой
-            полей!
-          </div>
+          <div className="text-gray-600 text-sm">Переместите карту для загрузки данных о зданиях</div>
         </div>
       ) : (
-        <div className="space-y-2 max-h-96 overflow-y-auto">
-          {buildings.map((building, index) => (
-            <div
-              key={building.id || index}
-              className="bg-white rounded-md p-3 shadow-sm"
-            >
-              <div className="grid grid-cols-5 gap-2 text-sm">
-                <span
-                  className="font-medium text-gray-700 truncate"
-                  title={building.address}
-                >
-                  {building.address}
-                </span>
-                <span className="text-center text-gray-700">
-                  {building.sri?.toFixed(2) || "N/A"}
-                </span>
-                <span className="text-center text-gray-700">
-                  {building.h?.toFixed(2) || "N/A"}
-                </span>
-                <span className="text-center text-gray-700">
-                  {building.e?.toFixed(2) || "N/A"}
-                </span>
-                <span className="text-center text-gray-700">
-                  {building.v?.toFixed(2) || "N/A"}
-                </span>
+        <>
+          <div className="space-y-1 max-h-64 overflow-y-auto">
+            {paginatedBuildings.map((building, index) => (
+              <div key={building.id || index} className="bg-white rounded-md p-2 shadow-sm">
+                <div className="grid grid-cols-5 gap-2 text-sm">
+                  <span className="font-medium text-gray-700 truncate" title={building.address}>{building.address}</span>
+                  <span className="text-center text-gray-700">{building.sri?.toFixed(2) || "N/A"}</span>
+                  <span className="text-center text-gray-700">{building.h?.toFixed(2) || "N/A"}</span>
+                  <span className="text-center text-gray-700">{building.e?.toFixed(2) || "N/A"}</span>
+                  <span className="text-center text-gray-700">{building.v?.toFixed(2) || "N/A"}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-3 text-sm">
+              <span className="text-gray-600">Стр. {currentPage + 1} из {totalPages.toLocaleString()}</span>
+              <div className="flex gap-2">
+                <button onClick={() => setCurrentPage(Math.max(0, currentPage - 1))} disabled={currentPage === 0} className="p-1 rounded bg-white shadow-sm disabled:opacity-50 hover:bg-gray-50">
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))} disabled={currentPage >= totalPages - 1} className="p-1 rounded bg-white shadow-sm disabled:opacity-50 hover:bg-gray-50">
+                  <ChevronRight className="w-4 h-4" />
+                </button>
               </div>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
     </div>
   );
