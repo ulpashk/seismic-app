@@ -6,23 +6,10 @@ import MapLegend from "./MapLegend";
 
 export default function GeoRiskMapDashboard({
   // Constants from parent
-  districts,
   districtCoordinates,
   riskLabelMap,
-  categoryLabelMap,
   // State from parent
   filters,
-  setFilters,
-  // Filter handlers from parent
-  toggleRiskLevel,
-  toggleCategory,
-  selectDistrict,
-  resetToAllDistricts,
-  // Legacy props (for backward compatibility)
-  mode,
-  setMode,
-  selectedDistrict,
-  densityLevels,
 }) {
   const mapContainer = useRef(null);
   const mapRef = useRef(null);
@@ -34,6 +21,19 @@ export default function GeoRiskMapDashboard({
   // State management
   const [geoData, setGeoData] = useState(null);
   const [mapStyle] = useState("basic");
+
+  // PBF tile URL for geo risk - базовый URL
+  const PBF_BASE_URL =
+    "https://admin.smartalmaty.kz/api/v1/address/postgis/geo-risk-tile/{z}/{x}/{y}.pbf";
+
+  // Строим query string для фильтрации по районам (как в старой карте)
+  const buildDistrictQuery = useCallback(() => {
+    if (filters.districts.length > 0) {
+      const districtList = filters.districts.map((d) => `${d} район`).join(",");
+      return `?district=${encodeURIComponent(districtList)}`;
+    }
+    return "";
+  }, [filters.districts]);
 
   const [, setStats] = useState({
     totalAreas: 0,
@@ -256,7 +256,7 @@ export default function GeoRiskMapDashboard({
       container: mapContainer.current,
       style: `https://api.maptiler.com/maps/basic-v2/style.json?key=${API_KEY}`,
       center: [76.906, 43.198],
-      zoom: 11,
+      zoom: 13,
       pitch: 45,
       bearing: 0,
       antialias: true,
@@ -558,247 +558,59 @@ export default function GeoRiskMapDashboard({
     return () => clearTimeout(timeoutId);
   }, [geoData, mapLoaded, addGeoStructLayers]);
 
-  // State for geo risk data
-  const [geoRiskData, setGeoRiskData] = useState(null);
-  const [loadingProgress, setLoadingProgress] = useState(0);
-  const [loadingMessage, setLoadingMessage] = useState("");
-  const loadStartTimeRef = useRef(null);
+  // Ref for tracking if geo risk layer was created
   const geoRiskLayerCreatedRef = useRef(false);
 
-  // STREAMING: Load file and display progressively
+  // Add geo risk layer using PBF Vector Tiles (FAST!) AFTER geostructures are loaded
   useEffect(() => {
-    const loadData = async () => {
-      loadStartTimeRef.current = performance.now();
-      console.log("⏱️ Starting streaming load from file...");
-
-      const allFeatures = [];
-      let displayedCount = 0;
-      const CHUNK_SIZE = 500; // Показываем каждые 500 features
-
-      try {
-        const response = await fetch("/geo_risk.geojson");
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-        const text = await response.text();
-        console.log(
-          `📥 Downloaded ${(text.length / 1024 / 1024).toFixed(1)} MB`
-        );
-
-        setLoadingMessage("Парсинг данных...");
-
-        // Парсим JSON
-        const data = JSON.parse(text);
-        console.log(`✅ Parsed ${data.features?.length || 0} features`);
-
-        if (!data.features) {
-          throw new Error("No features in file");
-        }
-
-        const totalFeatures = data.features.length;
-
-        // Постепенно добавляем features
-        for (let i = 0; i < totalFeatures; i += CHUNK_SIZE) {
-          const chunk = data.features.slice(i, i + CHUNK_SIZE);
-          allFeatures.push(...chunk);
-
-          // Обновляем карту каждые CHUNK_SIZE features
-          setGeoRiskData({
-            type: "FeatureCollection",
-            features: [...allFeatures],
-          });
-
-          displayedCount += chunk.length;
-          const progress = Math.round((displayedCount / totalFeatures) * 100);
-          setLoadingProgress(progress);
-          setLoadingMessage(`Отображено: ${displayedCount} / ${totalFeatures}`);
-
-          console.log(
-            `📊 Displayed ${displayedCount} / ${totalFeatures} (${progress}%)`
-          );
-
-          // Даем браузеру время на рендеринг
-          await new Promise((resolve) => setTimeout(resolve, 10));
-        }
-
-        const totalTime = performance.now() - loadStartTimeRef.current;
-        console.log(
-          `🎉 Complete! ${totalFeatures} features in ${(
-            totalTime / 1000
-          ).toFixed(1)}s`
-        );
-
-        setLoadingProgress(0);
-        setLoadingMessage("");
-      } catch (error) {
-        console.error("❌ Error:", error);
-        setGeoRiskData({ type: "FeatureCollection", features: [] });
-        setLoadingMessage("Ошибка загрузки");
-      }
-    };
-
-    loadData();
-  }, []);
-
-  // Apply filters to geo risk data - OPTIMIZED
-  const getFilteredGeoRiskData = useCallback(() => {
-    if (!geoRiskData) return { type: "FeatureCollection", features: [] };
-
-    let filtered = geoRiskData.features;
-
-    // Проверяем нужна ли фильтрация вообще
-    const hasDistrictFilter = filters.districts.length > 0;
-    const allRisks = Object.values(filters.riskLevels).every((v) => v);
-    const noRisks = Object.values(filters.riskLevels).every((v) => !v);
-
-    // Быстрый выход если нет фильтров
-    if (!hasDistrictFilter && allRisks) {
-      console.log(
-        "✅ No filters active, returning all data:",
-        filtered.length,
-        "features"
-      );
-      return {
-        type: "FeatureCollection",
-        features: filtered,
-      };
+    if (!mapRef.current || !mapLoaded || !geoStructsLoaded) {
+      return;
     }
 
-    // Быстрый выход если все риски выключены
-    if (noRisks) {
-      console.log("⚠️ No risk levels selected, returning empty data");
-      return { type: "FeatureCollection", features: [] };
-    }
-
-    // Создаем Set для быстрого поиска (O(1) вместо O(n))
-    const districtSet = hasDistrictFilter
-      ? new Set(filters.districts.map((d) => `${d} район`))
-      : null;
-
-    const selectedRisks = !allRisks
-      ? new Set(
-          Object.entries(filters.riskLevels)
-            .filter(([_, enabled]) => enabled)
-            .map(([key]) => riskLabelMap[key])
-        )
-      : null;
-
-    // Одна итерация с множественными проверками
-    filtered = filtered.filter((f) => {
-      // Проверка района
-      if (districtSet && !districtSet.has(f.properties?.district)) {
-        return false;
-      }
-      // Проверка риска
-      if (selectedRisks && !selectedRisks.has(f.properties?.GRI_class)) {
-        return false;
-      }
-      return true;
-    });
-
-    console.log(
-      "🔍 Filtered geo risk data:",
-      filtered.length,
-      "features (from",
-      geoRiskData.features.length,
-      "total)"
-    );
-
-    return {
-      type: "FeatureCollection",
-      features: filtered,
-    };
-  }, [geoRiskData, filters.districts, filters.riskLevels, riskLabelMap]);
-
-  // Add geo risk layer from local GeoJSON AFTER geostructures are loaded
-  useEffect(() => {
-    // Упрощенный лог для меньшего шума
-    if (!mapRef.current || !mapLoaded || !geoStructsLoaded || !geoRiskData) {
-      return; // Тихо выходим если условия не выполнены
-    }
-
-    // Skip if layer already created (prevent recreation)
+    // Skip if layer already created
     if (geoRiskLayerCreatedRef.current) {
-      return; // Тихо выходим если слой уже создан
+      return;
     }
 
-    // Mark as creating immediately to prevent duplicate calls
     geoRiskLayerCreatedRef.current = true;
-    console.log("�️ Creating geo risk layer...");
+    console.log("🗺️ Creating geo risk layer with PBF tiles...");
 
     const map = mapRef.current;
 
     const addGeoRiskLayer = () => {
       if (!map.isStyleLoaded()) {
-        console.log("⏳ Style not ready for geo risk layer, retrying...");
+        console.log("⏳ Style not ready, retrying...");
         setTimeout(addGeoRiskLayer, 100);
         return;
       }
 
-      const renderStart = performance.now();
-      console.log("⏱️ [TIMING] Starting geo risk layer rendering...");
+      const startTime = performance.now();
 
       try {
-        // Clean up existing layers/sources with safety checks
-        const cleanupStart = performance.now();
-        if (map.getLayer && map.getLayer("geoRisk-outline")) {
-          map.removeLayer("geoRisk-outline");
-        }
+        // Clean up existing layers/sources
         if (map.getLayer && map.getLayer("geoRisk-fill")) {
           map.removeLayer("geoRisk-fill");
         }
         if (map.getSource && map.getSource("geoRisk")) {
           map.removeSource("geoRisk");
         }
-        const cleanupEnd = performance.now();
-        console.log(
-          `⏱️ [TIMING] Layer cleanup: ${(cleanupEnd - cleanupStart).toFixed(
-            2
-          )}ms`
-        );
       } catch (e) {
-        console.warn("Error during layer cleanup:", e);
+        console.warn("Error during cleanup:", e);
       }
 
-      // Get filtered data
-      const filterStart = performance.now();
-      const filteredData = getFilteredGeoRiskData();
-      const filterEnd = performance.now();
-      console.log(
-        `⏱️ [TIMING] Data filtering: ${(filterEnd - filterStart).toFixed(
-          2
-        )}ms (${filteredData.features.length} features)`
-      );
+      // Build tile URL with district filter (like old map)
+      const tileUrl = `${PBF_BASE_URL}${buildDistrictQuery()}`;
+      console.log("🗺️ PBF Tile URL:", tileUrl);
 
-      // DEBUG: Check data structure
-      if (filteredData.features.length > 0) {
-        const sample = filteredData.features[0];
-        console.log("🗺️ SAMPLE FEATURE TO MAP:", {
-          hasGeometry: !!sample.geometry,
-          geometryType: sample.geometry?.type,
-          hasProperties: !!sample.properties,
-          hasColorGRI: !!sample.properties?.color_GRI,
-          colorValue: sample.properties?.color_GRI,
-          allProps: sample.properties,
-        });
-      }
-
-      // Add GeoJSON source with AGGRESSIVE performance optimizations
-      const sourceStart = performance.now();
+      // Add PBF Vector Tile source (FAST!)
       map.addSource("geoRisk", {
-        type: "geojson",
-        data: filteredData,
-        buffer: 0, // No buffer for fastest performance
-        tolerance: 2.5, // Более агрессивное упрощение (было 1.5, default 0.375)
-        maxzoom: 16, // Generate tiles up to zoom 16
-        lineMetrics: false, // Disable if not needed
-        generateId: true, // Use auto-generated IDs for better performance
+        type: "vector",
+        tiles: [tileUrl],
+        minzoom: 0,
+        maxzoom: 14,
       });
-      const sourceEnd = performance.now();
-      console.log(
-        `⏱️ [TIMING] Source creation: ${(sourceEnd - sourceStart).toFixed(2)}ms`
-      );
 
-      // Add tile layer BEFORE the first geoStruct layer (so geostructs render on top)
+      // Add fill layer BEFORE geoStruct layers (so geostructs render on top)
       const firstGeoStructLayer = map.getLayer("fault-fill")
         ? "fault-fill"
         : map.getLayer("struct-lines")
@@ -807,12 +619,12 @@ export default function GeoRiskMapDashboard({
         ? "struct-points"
         : undefined;
 
-      const layerStart = performance.now();
       map.addLayer(
         {
           id: "geoRisk-fill",
           type: "fill",
           source: "geoRisk",
+          "source-layer": "geo_risk",
           paint: {
             "fill-color": [
               "case",
@@ -820,50 +632,20 @@ export default function GeoRiskMapDashboard({
               ["get", "color_GRI"],
               "#33a456",
             ],
-            "fill-opacity": 0.7, // Constant 60% opacity - ALWAYS VISIBLE
+            "fill-opacity": 0.6,
           },
-          // NO minzoom - visible at ALL zoom levels!
-        },
-        firstGeoStructLayer
-      ); // Insert before first geoStruct layer
-
-      // Add outline layer for better visibility
-      map.addLayer(
-        {
-          id: "geoRisk-outline",
-          type: "line",
-          source: "geoRisk",
-          paint: {
-            "line-color": "#ffffff",
-            "line-width": [
-              "interpolate",
-              ["linear"],
-              ["zoom"],
-              6,
-              0.3,
-              10,
-              0.6,
-              14,
-              1.0,
-              18,
-              1.5,
-            ],
-            "line-opacity": 0.4,
-          },
-          // NO minzoom - visible at ALL zoom levels!
         },
         firstGeoStructLayer
       );
 
-      const layerEnd = performance.now();
-      console.log(
-        `⏱️ [TIMING] Layer creation: ${(layerEnd - layerStart).toFixed(2)}ms`
-      );
-
-      // Attach popup handlers
+      // Popup on click
       map.on("click", "geoRisk-fill", (e) => {
         if (e.features && e.features.length > 0) {
           const props = e.features[0].properties;
+          // Debug: log all properties to find correct field names
+          console.log("🏠 Clicked feature properties:", props);
+          console.log("🏠 All property keys:", Object.keys(props));
+
           new maplibregl.Popup()
             .setLngLat(e.lngLat)
             .setHTML(
@@ -894,89 +676,81 @@ export default function GeoRiskMapDashboard({
         map.getCanvas().style.cursor = "";
       });
 
-      const renderEnd = performance.now();
-      const totalRenderTime = renderEnd - renderStart;
-      const totalTime = loadStartTimeRef.current
-        ? renderEnd - loadStartTimeRef.current
-        : null;
-
+      const endTime = performance.now();
       console.log(
-        `✅ Geo risk layer added from local GeoJSON UNDER geostructs`
+        `✅ Geo risk PBF layer added in ${(endTime - startTime).toFixed(2)}ms`
       );
-      console.log(
-        `⏱️ [TIMING] Total render time: ${totalRenderTime.toFixed(2)}ms`
-      );
-      if (totalTime) {
-        console.log(
-          `⏱️ [TIMING] 🎉 TOTAL TIME (Load + Render): ${totalTime.toFixed(2)}ms`
-        );
-        console.log(`📊 [PERFORMANCE BREAKDOWN]`);
-        console.log(
-          `  - File loading: ${loadStartTimeRef.current ? "completed" : "N/A"}`
-        );
-        console.log(`  - Rendering: ${totalRenderTime.toFixed(2)}ms`);
-        console.log(`  - Grand Total: ${totalTime.toFixed(2)}ms`);
-      }
-
-      console.log("✅ Layer creation completed successfully");
     };
 
-    const timeoutId = setTimeout(addGeoRiskLayer, 100);
+    setTimeout(addGeoRiskLayer, 100);
+  }, [mapLoaded, geoStructsLoaded, PBF_BASE_URL, buildDistrictQuery]);
 
-    return () => {
-      clearTimeout(timeoutId);
-      // Note: We don't reset geoRiskLayerCreatedRef here because
-      // the layer should persist until style change or component unmount
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mapLoaded, geoStructsLoaded, geoRiskData]); // Stable dependencies to prevent recreation
-
-  // Update geo risk data when filters change OR when new chunks arrive
+  // Update PBF tile URL when district filter changes (like old map does)
   useEffect(() => {
-    // Skip if layer hasn't been created yet
-    if (
-      !geoRiskLayerCreatedRef.current ||
-      !mapRef.current ||
-      !mapLoaded ||
-      !geoRiskData
-    ) {
-      return; // Тихо выходим
-    }
+    if (!mapRef.current || !mapLoaded || !geoRiskLayerCreatedRef.current)
+      return;
 
     const map = mapRef.current;
+    const src = map.getSource("geoRisk");
 
-    const updateGeoRiskData = () => {
-      if (!map.isStyleLoaded()) {
-        setTimeout(updateGeoRiskData, 100);
-        return;
-      }
+    if (!src) {
+      console.log("⚠️ geoRisk source not found for tile update");
+      return;
+    }
 
-      const source = map.getSource("geoRisk");
-      if (source) {
-        const updateStart = performance.now();
+    // Build new tile URL with current district filter
+    const newTileUrl = `${PBF_BASE_URL}${buildDistrictQuery()}`;
+    console.log("🔄 Updating PBF tile URL for district filter:", newTileUrl);
+    console.log("🔄 Selected districts:", filters.districts);
 
-        const filteredData = getFilteredGeoRiskData();
-        source.setData(filteredData);
+    // Use setTiles to update the tile URL (like old map)
+    src.setTiles([newTileUrl]);
+    map.triggerRepaint();
+  }, [filters.districts, mapLoaded, PBF_BASE_URL, buildDistrictQuery]);
 
-        const updateEnd = performance.now();
-        console.log(
-          `🔄 Updated map: ${filteredData.features.length} features in ${(
-            updateEnd - updateStart
-          ).toFixed(0)}ms`
-        );
-      }
-    };
+  // Update geo risk layer filters when risk levels change
+  // NOTE: District filtering is done via tile URL (server-side), not setFilter
+  useEffect(() => {
+    if (!mapRef.current || !mapLoaded) return;
 
-    // Небольшая задержка для batching обновлений (дольше чтобы накопить несколько chunks)
-    const timeoutId = setTimeout(updateGeoRiskData, 200);
-    return () => clearTimeout(timeoutId);
-  }, [
-    filters.districts,
-    filters.riskLevels,
-    mapLoaded,
-    geoRiskData,
-    getFilteredGeoRiskData,
-  ]);
+    const map = mapRef.current;
+    if (!map.getLayer("geoRisk-fill")) return;
+
+    // Build risk filter only (district filtering is via URL)
+    const selectedRisks = Object.entries(filters.riskLevels)
+      .filter(([_, enabled]) => enabled)
+      .map(([key]) => riskLabelMap[key]);
+
+    const allRisks = Object.values(filters.riskLevels).every((v) => v);
+    const noRisks = Object.values(filters.riskLevels).every((v) => !v);
+
+    // Apply risk filter only
+    if (noRisks) {
+      // Hide all if no risks selected
+      console.log("🔍 Hiding all (no risks selected)");
+      map.setFilter("geoRisk-fill", ["==", ["get", "GRI_class"], "___NONE___"]);
+    } else if (!allRisks && selectedRisks.length > 0) {
+      console.log("🔍 Setting risk filter:", selectedRisks);
+      map.setFilter("geoRisk-fill", [
+        "in",
+        ["get", "GRI_class"],
+        ["literal", selectedRisks],
+      ]);
+    } else {
+      // Show all (all risks selected)
+      console.log("🔍 Clearing filter (showing all risks)");
+      map.setFilter("geoRisk-fill", null);
+    }
+
+    // Force repaint
+    map.triggerRepaint();
+
+    console.log("🔍 Applied geo risk filters:", {
+      selectedRisks,
+      districts: filters.districts,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.riskLevels, riskLabelMap, mapLoaded]);
 
   // Update layer visibility and filters
   useEffect(() => {
@@ -1155,27 +929,6 @@ export default function GeoRiskMapDashboard({
         className="absolute inset-0 w-full h-full"
         style={{ minHeight: "100vh" }}
       />
-
-      {/* Loading Progress Indicator */}
-      {loadingProgress > 0 && loadingProgress < 100 && (
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white rounded-lg shadow-lg px-6 py-3 z-50">
-          <div className="flex items-center gap-3">
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-            <div>
-              <div className="text-sm font-medium text-gray-900">
-                {loadingMessage}
-              </div>
-              <div className="w-48 bg-gray-200 rounded-full h-2 mt-1">
-                <div
-                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${loadingProgress}%` }}
-                ></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       <MapLegend />
     </div>
   );

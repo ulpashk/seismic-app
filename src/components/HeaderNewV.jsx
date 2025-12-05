@@ -59,14 +59,15 @@ export default function Header({ activeLayer, mainPageTab, setMainPageTab }) {
           {/* <div className="flex items-center gap-8"> */}
           <h1 className="text-lg font-semibold">{getHeaderContent()}</h1>
           <nav className="flex gap-2">
-            {location.pathname !== "/analytics" && (
-              <button
-                onClick={() => setIsMethodologyOpen(true)}
-                className="rounded-md border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50"
-              >
-                Методология
-              </button>
-            )}
+            {location.pathname !== "/analytics" &&
+              location.pathname !== "/recommendations" && (
+                <button
+                  onClick={() => setIsMethodologyOpen(true)}
+                  className="rounded-md border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50"
+                >
+                  Методология
+                </button>
+              )}
             {tabs.map((tab) => {
               const isActive = location.pathname === tab.href;
               return (

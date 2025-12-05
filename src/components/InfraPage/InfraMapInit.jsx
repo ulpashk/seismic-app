@@ -150,6 +150,7 @@ export default function InfraMap({
   buildingCategories,
   setActiveLayer,
   activeLayer,
+  riskClassFilter,
 }) {
   const mapContainer = useRef(null);
   const map = useRef(null);
@@ -242,6 +243,45 @@ export default function InfraMap({
       map.current.setLayoutProperty("building-fill", "visibility", "visible");
     }
   };
+
+  // Применение фильтра по классам риска (sri_class: A, B, C, D, E)
+  useEffect(() => {
+    if (!map.current || !map.current.getLayer("building-fill")) return;
+
+    // Если оба фильтра включены или выключены - показываем всё
+    if (
+      !riskClassFilter ||
+      (riskClassFilter.showHighRisk && riskClassFilter.showLowRisk)
+    ) {
+      map.current.setFilter("building-fill", null);
+      return;
+    }
+
+    // Если оба выключены - скрываем все здания
+    if (!riskClassFilter.showHighRisk && !riskClassFilter.showLowRisk) {
+      map.current.setFilter("building-fill", [
+        "==",
+        ["get", "sri_class"],
+        "__none__",
+      ]);
+      return;
+    }
+
+    // Фильтруем по классам
+    const allowedClasses = [];
+    if (riskClassFilter.showHighRisk) {
+      allowedClasses.push("E", "D");
+    }
+    if (riskClassFilter.showLowRisk) {
+      allowedClasses.push("A", "B", "C");
+    }
+
+    map.current.setFilter("building-fill", [
+      "in",
+      ["get", "sri_class"],
+      ["literal", allowedClasses],
+    ]);
+  }, [riskClassFilter]);
 
   useEffect(() => {
     if (!map.current) return;
@@ -412,7 +452,7 @@ export default function InfraMap({
       container: mapContainer.current,
       style: `https://api.maptiler.com/maps/basic-v2/style.json?key=${API_KEY}`,
       center: [76.9129, 43.222],
-      zoom: 10,
+      zoom: 13,
       pitch: 45,
       antialias: true,
     });

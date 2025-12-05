@@ -48,6 +48,10 @@ export default function ClusterMap({ onBuildingsUpdate }) {
             building_address: p.building_address,
             full_address: p.full_address,
           });
+          console.log(
+            "📋 Категория мероприятия:",
+            p.measure_category || p.category
+          );
         }
 
         // Пропускаем если уже есть
@@ -100,6 +104,7 @@ export default function ClusterMap({ onBuildingsUpdate }) {
           area_m2: p.area_m2 !== undefined ? Number(p.area_m2) : null,
           is_emergency_building: !!p.is_emergency_building,
           is_passport: !!p.is_passport,
+          measure_category: p.measure_category || p.category || null,
         });
       });
 
