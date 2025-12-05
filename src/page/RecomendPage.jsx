@@ -63,9 +63,9 @@ export default function RecomendPage() {
   }, [visibleBuildings]);
 
   return (
-    <div className="px-6 py-4 bg-gray-50 min-h-screen">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-        <div className="space-y-6">
+    <div className="px-6 py-4 bg-gray-50 h-[90vh]">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="flex flex-col gap-6">
           <Demolition buildings={demolitionBuildings} isLoading={isLoading} />
           <ClusterMap onBuildingsUpdate={handleBuildingsUpdate} />
         </div>
