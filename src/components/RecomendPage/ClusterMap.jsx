@@ -419,10 +419,7 @@ export default function ClusterMap({ onBuildingsUpdate }) {
       </div>
 
       {/* Контейнер карты */}
-      <div
-        className="bg-white rounded-md overflow-hidden relative"
-        style={{ height: "400px" }}
-      >
+      <div className="bg-white rounded-md overflow-hidden relative h-[70vh]">
         <div ref={mapContainer} className="w-full h-full" />
 
         {/* Индикатор загрузки */}

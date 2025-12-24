@@ -126,14 +126,14 @@ export default function Demolition({ buildings = [], isLoading = false }) {
       </div>
 
       {sortedBuildings.length === 0 ? (
-        <div className="bg-white rounded-md p-6 text-center">
+        <div className="bg-white rounded-md p-6 text-center ">
           <div className="text-gray-600 text-sm">
             Переместите карту для загрузки данных о зданиях
           </div>
         </div>
       ) : (
-        <>
-          <div className="space-y-1 overflow-y-auto max-h-[280px]">
+        <div className="flex flex-col flex-1 min-h-0">
+          <div className="space-y-1 overflow-y-auto flex-1">
             {paginatedBuildings.map((building, index) => (
               <div
                 key={building.id || index}
@@ -188,7 +188,7 @@ export default function Demolition({ buildings = [], isLoading = false }) {
               </div>
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   );
