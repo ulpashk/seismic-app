@@ -5,7 +5,6 @@ import HeatMapPopulation from "../components/MainPage/HeatMapPopulation";
 // import GeoRiskFilter from "../components/MainPage/GeoRiskFilter";
 
 export default function MainPage({ mainPageTab, setMainPageTab }) {
-  // Constants - single source of truth
   const districts = [
     "Алатауский",
     "Алмалинский",
@@ -40,7 +39,6 @@ export default function MainPage({ mainPageTab, setMainPageTab }) {
     fault: "разломы",
   };
 
-  // Unified filter state
   const [filters, setFilters] = useState({
     districts: [],
     riskLevels: {
@@ -55,7 +53,6 @@ export default function MainPage({ mainPageTab, setMainPageTab }) {
     },
   });
 
-  // Filter handler functions
   const toggleRiskLevel = (level) => {
     setFilters((prev) => ({
       ...prev,

@@ -51,13 +51,13 @@ const pointPaintLogic = {
   social: [
     "match",
     ["get", "category"],
-    "school",
+    "Школы",
     "#2563eb", // blue
-    "pppn",
+    "ПППН",
     "#16a34a", // green
-    "health",
+    "Больницы",
     "#dc2626", // red
-    "ddo",
+    "ДДО",
     "#eab308", // yellow
     /* default */ "#6b7280", // gray
   ],
@@ -83,10 +83,10 @@ const pointPaintLogic = {
 };
 
 const socialLegend = [
-  { label: "Школы", key: "school", color: "#2563eb" },
-  { label: "ПППН", key: "pppn", color: "#16a34a" },
-  { label: "Больницы", key: "health", color: "#dc2626" },
-  { label: "Детские сады", key: "ddo", color: "#eab308" },
+  { label: "Школы", key: "Школы", color: "#2563eb", icon: "/icons/school.png" },
+  { label: "ПППН", key: "ПППН", color: "#16a34a", icon: "/icons/pppn.png" },
+  { label: "Больницы", key: "Больницы", color: "#dc2626", icon: "/icons/health.png" },
+  { label: "Детские сады", key: "ДДО", color: "#eab308", icon: "/icons/ddo.png" },
 ];
 
 const enginLegend = [
@@ -853,7 +853,6 @@ export default function InfraMap({
           selectedRepgis.includes(f.properties.cat_name)
         );
 
-        // <<< START: RESTORED MARKER_GEOJSON LOGIC
         const markerPoints = filteredMainFeatures
           .filter((f) => f.properties.marker_geojson)
           .map((f) => {
@@ -1062,7 +1061,7 @@ export default function InfraMap({
                       }}
                     >
                       <img
-                        src={`/icons/${item.key}.png`}
+                        src={item.icon}
                         alt={item.label}
                         className="w-4 h-4 object-contain"
                       />

@@ -12,10 +12,10 @@ export default function InfraPage({ activeLayer, setActiveLayer }) {
   });
 
   const [socialCategories, setSocialCategories] = useState({
-    school: false,
-    ddo: false,
-    health: false,
-    pppn: false,
+    Школы: false,
+    ДДО: false,
+    Больницы: false,
+    ПППН: false,
   });
 
   const [buildingCategories, setBuildingCategories] = useState({

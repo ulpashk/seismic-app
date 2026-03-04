@@ -13,13 +13,13 @@ export default class SocialIconLayer extends CompositeLayer {
       getIcon: (d) => {
         // Choose border color by category
         const color =
-          d.properties.category === "school"
+          d.properties.category === "Школы"
             ? "#2563eb" // blue
-            : d.properties.category === "pppn"
+            : d.properties.category === "ПППН"
             ? "#16a34a" // green
-            : d.properties.category === "health"
+            : d.properties.category === "Больницы"
             ? "#dc2626" // red
-            : d.properties.category === "ddo"
+            : d.properties.category === "ДДО"
             ? "#eab308" // yellow
             : "#888888"; // fallback gray
 
@@ -46,13 +46,23 @@ export default class SocialIconLayer extends CompositeLayer {
       id: `${this.props.id}-icon`,
       data,
       getPosition: (d) => d.geometry.coordinates,
-      getIcon: (d) => ({
-        url: `/icons/${d.properties.category}.png`,
-        width: 32,
-        height: 32,
-        anchorY: 40,
-        anchorX: 40,
-      }),
+      // getIcon: (d) => ({
+      //   url: `/icons/${d.properties.category}.png`,
+      //   width: 32,
+      //   height: 32,
+      //   anchorY: 40,
+      //   anchorX: 40,
+      // }),
+      getIcon: d => {
+        const cat = d.properties.category;
+        const iconUrl =
+          cat === "Школы" ? "/icons/school.png" :
+          cat === "ПППН" ? "/icons/pppn.png" :
+          cat === "Больницы" ? "/icons/health.png" :
+          cat === "ДДО" ? "/icons/ddo.png" :
+          "/icons/default.png";
+        return { url: iconUrl, width: 32, height: 32, anchorY: 40, anchorX: 40 };
+      },
       sizeScale: 3.5,
       getSize: 4.5,
       getColor: [255, 255, 255, 255],

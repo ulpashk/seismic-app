@@ -270,7 +270,7 @@ export default function InfraFilter({
               </div>
               {openSections.social && (
                 <div className={sectionStyle}>
-                  {["school", "ddo", "health", "pppn"].map((cat) => (
+                  {["Школы", "ДДО", "Больницы", "ПППН"].map((cat) => (
                     <label
                       key={cat}
                       className="flex items-center space-x-2 cursor-pointer p-1 hover:bg-gray-50 rounded"
@@ -282,11 +282,11 @@ export default function InfraFilter({
                         className="form-checkbox scale-90"
                       />
                       {labelWithArrow(
-                        cat === "school"
+                        cat === "Школы"
                           ? "Школы"
-                          : cat === "ddo"
+                          : cat === "ДДО"
                           ? "Детские сады"
-                          : cat === "health"
+                          : cat === "Больницы"
                           ? "Больницы"
                           : "ПППН"
                       )}
