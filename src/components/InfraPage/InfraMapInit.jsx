@@ -247,11 +247,12 @@ export default function InfraMap({
   useEffect(() => {
     if (!map.current) return;
 
-    if (
-      !buildingCategories.seismicSafety &&
-      !buildingCategories.emergency &&
-      !buildingCategories.seismic
-    ) {
+    const isTrioActive = 
+      buildingCategories.seismicSafety ||
+      buildingCategories.emergency ||
+      buildingCategories.seismic;
+
+    if (!isTrioActive) {
       if (map.current.getLayer("seismic-safety-fill")) {
         map.current.setLayoutProperty(
           "seismic-safety-fill",
@@ -259,10 +260,12 @@ export default function InfraMap({
           "none"
         );
       }
+      if (map.current.getLayer("seismic-safety-points")) {
+        map.current.setLayoutProperty("seismic-safety-points", "visibility", "none");
+      }
       return;
     }
 
-    // 🔹 Otherwise, load layer and show
     loadSeismicSafetyLayer().then(() => {
       if (map.current.getLayer("seismic-safety-fill")) {
         map.current.setLayoutProperty(
@@ -271,8 +274,10 @@ export default function InfraMap({
           "visible"
         );
       }
+      if (map.current.getLayer("seismic-safety-points")) {
+        map.current.setLayoutProperty("seismic-safety-points", "visibility", "visible");
+      }
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDistrict, buildingCategories]);
 
   const loadSeismicSafetyLayer = async () => {
@@ -281,7 +286,6 @@ export default function InfraMap({
     let url = urls.seismicSafety;
     const districtQuery = buildQuery();
 
-    // 🔹 Determine which type of data we are loading
     let filterType = "all";
 
     if (buildingCategories.emergency) {
@@ -291,116 +295,124 @@ export default function InfraMap({
       url += "?category=seismic_eval";
       filterType = "seismic_eval";
     } else if (buildingCategories.seismicSafety) {
-      // all data → no extra category parameter
       filterType = "all";
+    } else {
+      return; 
     }
 
     if (districtQuery) {
       url += url.includes("?") ? `&${districtQuery.slice(1)}` : districtQuery;
     }
 
-    // 🔹 Fetch data
-    const res = await fetch(url);
-    const rawData = await res.json();
+    try {
+      // 🔹 Fetch data
+      const res = await fetch(url);
+      const rawData = await res.json();
 
-    // Check if we got features
-    if (!rawData?.results?.length) {
-      console.warn("No seismic safety data received");
-      return;
-    }
-
-    // 🔹 Convert to GeoJSON
-    const geojson = {
-      type: "FeatureCollection",
-      features: rawData.results
-        .filter((item) => item.geometry) // ensure geometry exists
-        .map((item) => ({
-          type: "Feature",
-          geometry: item.geometry,
-          properties: item,
-        })),
-    };
-
-    // 🔹 Determine color based on filter type
-    let fillColor = "#0066ff"; // blue
-    if (filterType === "is_emergency_building") fillColor = "#ff0000"; // red
-    else if (filterType === "seismic_eval") fillColor = "#00cc66"; // green
-
-    // 🔹 Add or update source
-    if (!map.current.getSource("seismic-safety")) {
-      map.current.addSource("seismic-safety", {
-        type: "geojson",
-        data: geojson,
-      });
-    } else {
-      map.current.getSource("seismic-safety").setData(geojson);
-    }
-
-    // 🔹 Add or update fill layer
-    if (!map.current.getLayer("seismic-safety-fill")) {
-      map.current.addLayer({
-        id: "seismic-safety-fill",
-        type: "fill",
-        source: "seismic-safety",
-        paint: {
-          "fill-color": fillColor,
-          "fill-opacity": 0.5,
-          "fill-outline-color": "#000000",
-        },
-      });
-    } else {
-      map.current.setPaintProperty(
-        "seismic-safety-fill",
-        "fill-color",
-        fillColor
-      );
-    }
-
-    // 🔹 Add or update point layer for visibility
-    if (!map.current.getLayer("seismic-safety-points")) {
-      map.current.addLayer({
-        id: "seismic-safety-points",
-        type: "circle",
-        source: "seismic-safety",
-        paint: {
-          "circle-radius": 5,
-          "circle-color": fillColor,
-          "circle-stroke-color": "#ffffff",
-          "circle-stroke-width": 1,
-        },
-      });
-    } else {
-      map.current.setPaintProperty(
-        "seismic-safety-points",
-        "circle-color",
-        fillColor
-      );
-    }
-
-    // 🔹 Apply filters
-    const filters = ["all"];
-    if (filterType === "is_emergency_building") {
-      filters.push(["==", ["get", "is_emergency_building"], true]);
-    } else if (filterType === "seismic_eval") {
-      filters.push(["==", ["get", "seismic_eval"], true]);
-    }
-
-    // If "all" → no filters
-    map.current.setFilter("seismic-safety-fill", filters);
-
-    // 🔹 Fit map to data bounds
-    const maplibregl = window.maplibregl;
-    const bounds = new maplibregl.LngLatBounds();
-    geojson.features.forEach((f) => {
-      if (f.geometry?.type === "Polygon") {
-        f.geometry.coordinates[0].forEach((coord) => bounds.extend(coord));
-      } else if (f.geometry?.type === "Point") {
-        bounds.extend(f.geometry.coordinates);
+      // Check if we got features
+      if (!rawData?.results?.length) {
+        console.warn("No seismic safety data received");
+        if (map.current.getSource("seismic-safety")) {
+              map.current.getSource("seismic-safety").setData({ type: "FeatureCollection", features: [] });
+        }
+        return;
       }
-    });
 
-    if (!bounds.isEmpty()) {
-      map.current.fitBounds(bounds, { padding: 50 });
+      // 🔹 Convert to GeoJSON
+      const geojson = {
+        type: "FeatureCollection",
+        features: rawData.results
+          .filter((item) => item.geometry) // ensure geometry exists
+          .map((item) => ({
+            type: "Feature",
+            geometry: item.geometry,
+            properties: item,
+          })),
+      };
+
+      // 🔹 Determine color based on filter type
+      let fillColor = "#0066ff"; // blue
+      if (filterType === "is_emergency_building") fillColor = "#ff0000"; // red
+      else if (filterType === "seismic_eval") fillColor = "#00cc66"; // green
+
+      // 🔹 Add or update source
+      if (!map.current.getSource("seismic-safety")) {
+        map.current.addSource("seismic-safety", {
+          type: "geojson",
+          data: geojson,
+        });
+      } else {
+        map.current.getSource("seismic-safety").setData(geojson);
+      }
+
+      // 🔹 Add or update fill layer
+      if (!map.current.getLayer("seismic-safety-fill")) {
+        map.current.addLayer({
+          id: "seismic-safety-fill",
+          type: "fill",
+          source: "seismic-safety",
+          paint: {
+            "fill-color": fillColor,
+            "fill-opacity": 0.5,
+            "fill-outline-color": "#000000",
+          },
+        });
+      } else {
+        map.current.setPaintProperty(
+          "seismic-safety-fill",
+          "fill-color",
+          fillColor
+        );
+      }
+
+      // 🔹 Add or update point layer for visibility
+      if (!map.current.getLayer("seismic-safety-points")) {
+        map.current.addLayer({
+          id: "seismic-safety-points",
+          type: "circle",
+          source: "seismic-safety",
+          paint: {
+            "circle-radius": 5,
+            "circle-color": fillColor,
+            "circle-stroke-color": "#ffffff",
+            "circle-stroke-width": 1,
+          },
+        });
+      } else {
+        map.current.setPaintProperty(
+          "seismic-safety-points",
+          "circle-color",
+          fillColor
+        );
+      }
+
+      // 🔹 Apply filters
+      const filters = ["all"];
+      if (filterType === "is_emergency_building") {
+        filters.push(["==", ["get", "is_emergency_building"], true]);
+      } else if (filterType === "seismic_eval") {
+        filters.push(["==", ["get", "seismic_eval"], true]);
+      }
+
+      // If "all" → no filters
+      map.current.setFilter("seismic-safety-fill", filters.length > 1 ? filters : null);
+
+      // 🔹 Fit map to data bounds
+      const maplibregl = window.maplibregl;
+      const bounds = new maplibregl.LngLatBounds();
+      geojson.features.forEach((f) => {
+        if (f.geometry?.type === "Polygon") {
+          f.geometry.coordinates[0].forEach((coord) => bounds.extend(coord));
+        } else if (f.geometry?.type === "Point") {
+          bounds.extend(f.geometry.coordinates);
+        }
+      });
+
+      if (!bounds.isEmpty()) {
+        map.current.fitBounds(bounds, { padding: 50 });
+      }
+    } catch (e) {
+      console.error("Error loading seismic safety:", e);
     }
   };
 
