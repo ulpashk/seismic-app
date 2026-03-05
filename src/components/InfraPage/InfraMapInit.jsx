@@ -244,45 +244,6 @@ export default function InfraMap({
     }
   };
 
-  // Применение фильтра по классам риска (sri_class: A, B, C, D, E)
-  useEffect(() => {
-    if (!map.current || !map.current.getLayer("building-fill")) return;
-
-    // Если оба фильтра включены или выключены - показываем всё
-    if (
-      !riskClassFilter ||
-      (riskClassFilter.showHighRisk && riskClassFilter.showLowRisk)
-    ) {
-      map.current.setFilter("building-fill", null);
-      return;
-    }
-
-    // Если оба выключены - скрываем все здания
-    if (!riskClassFilter.showHighRisk && !riskClassFilter.showLowRisk) {
-      map.current.setFilter("building-fill", [
-        "==",
-        ["get", "sri_class"],
-        "__none__",
-      ]);
-      return;
-    }
-
-    // Фильтруем по классам
-    const allowedClasses = [];
-    if (riskClassFilter.showHighRisk) {
-      allowedClasses.push("E", "D");
-    }
-    if (riskClassFilter.showLowRisk) {
-      allowedClasses.push("A", "B", "C");
-    }
-
-    map.current.setFilter("building-fill", [
-      "in",
-      ["get", "sri_class"],
-      ["literal", allowedClasses],
-    ]);
-  }, [riskClassFilter]);
-
   useEffect(() => {
     if (!map.current) return;
 
@@ -599,12 +560,31 @@ export default function InfraMap({
 
     // 🔹 Highrise filter
     if (buildingCategories.highrise) {
-      filters.push(["==", ["get", "is_highrise_in_poly"], "True"]);
+      filters.push(["==", ["get", "is_highrise_in_poly"], true]);
     }
 
-    // ✅ Apply filter dynamically
-    map.current.setFilter("building-fill", filters);
-  }, [buildingCategories, selectedDistrict]);
+    if (riskClassFilter) {
+      const allowedClasses = [];
+      if (riskClassFilter.showHighRisk) {
+        allowedClasses.push("E", "D");
+      }
+      if (riskClassFilter.showLowRisk) {
+        allowedClasses.push("A", "B", "C");
+      }
+
+      if (allowedClasses.length === 0) {
+        filters.push(["==", ["get", "sri_class"], "__none__"]);
+      }
+
+      else if (allowedClasses.length < 5) {
+        filters.push(["in", ["get", "sri_class"], ["literal", allowedClasses]]);
+      }
+    }
+
+    console.log("Applying Combined Filter:", filters);
+
+    map.current.setFilter("building-fill", filters.length > 1 ? filters : null);
+  }, [buildingCategories, selectedDistrict, riskClassFilter, activeLayer]);
 
   const loadLayer = async (layerKey) => {
     if (!map.current || !window.maplibregl) return;
