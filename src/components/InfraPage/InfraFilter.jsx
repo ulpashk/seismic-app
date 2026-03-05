@@ -296,7 +296,7 @@ export default function InfraFilter({
               )}
             </div>
 
-            {/* Building Categories */}
+           {/* Building Categories */}
             <div className="py-3">
               <div
                 className="flex justify-between items-center cursor-pointer"
@@ -309,33 +309,51 @@ export default function InfraFilter({
                   {openSections.building ? "▾" : "▸"}
                 </span>
               </div>
+              
               {openSections.building && (
                 <div className={sectionStyle}>
-                  {Object.entries(buildingCategories).map(([key, _]) => (
+                  {Object.entries(buildingCategories).map(([key, isChecked]) => (
                     <label
                       key={key}
                       className="flex items-center space-x-2 cursor-pointer p-1 hover:bg-gray-50 rounded"
                     >
                       <input
-                        type="checkbox"
-                        checked={buildingCategories[key]}
-                        onChange={() =>
-                          setBuildingCategories((prev) => ({
-                            ...prev,
-                            [key]: !prev[key],
-                          }))
+                        type={key === "highrise" ? "checkbox" : "radio"}
+                        
+                        name={key === "highrise" ? "highrise_group" : "seismic_group"}
+                        
+                        checked={isChecked}
+
+                        onClick={() =>
+                          setBuildingCategories((prev) => {
+                            if (key === "highrise") {
+                              return { ...prev, highrise: !prev.highrise };
+                            }
+
+                            if (prev[key]) {
+                              return { ...prev, [key]: false };
+                            }
+                            return {
+                              ...prev,
+                              seismicSafety: false,
+                              emergency: false,
+                              seismic: false,
+                              [key]: true,
+                            };
+                          })
                         }
-                        className="form-checkbox scale-90"
+                        readOnly 
+                        className={`scale-90 ${key === "highrise" ? "form-checkbox" : "form-radio"}`}
                       />
-                      {labelWithArrow(
-                        key === "highrise"
+                      <span className="text-sm">
+                        {key === "highrise"
                           ? "Здания выше 9 этажей между пр. Абая и пр. Аль-Фараби"
                           : key === "seismicSafety"
                           ? "Здания прошедшие паспортизацию"
                           : key === "emergency"
                           ? "Аварийные здания"
-                          : "Несейсмостойкие здания"
-                      )}
+                          : "Несейсмостойкие здания"}
+                      </span>
                     </label>
                   ))}
                 </div>
