@@ -43,6 +43,35 @@ export default function GeoRiskMapDashboard({
   });
 
   // Build API query
+  // const buildQuery = useCallback(() => {
+  //   const params = [];
+
+  //   // Districts
+  //   if (filters.districts.length > 0) {
+  //     const districtList = filters.districts.map((d) => `${d} район`).join(",");
+  //     params.push(`district=${encodeURIComponent(districtList)}`);
+  //   }
+
+  //   // Risk levels
+  //   const selectedRisks = Object.entries(filters.riskLevels)
+  //     .filter(([_, enabled]) => enabled)
+  //     .map(([key]) => riskLabelMap[key]);
+
+  //   const allRisks = Object.values(filters.riskLevels).every((v) => v);
+  //   const noRisks = Object.values(filters.riskLevels).every((v) => !v);
+
+  //   if (noRisks) {
+  //     params.push(`GRI_class=${encodeURIComponent("_none_")}`);
+  //   } else if (!allRisks && selectedRisks.length > 0) {
+  //     params.push(`GRI_class=${encodeURIComponent(selectedRisks.join(","))}`);
+  //   }
+
+  //   return params.length
+  //     ? `?${params.join("&")}&page_size=5000`
+  //     : "?page_size=5000";
+  // }, [filters.districts, filters.riskLevels, riskLabelMap]);
+
+  // Build API query
   const buildQuery = useCallback(() => {
     const params = [];
 
@@ -52,24 +81,13 @@ export default function GeoRiskMapDashboard({
       params.push(`district=${encodeURIComponent(districtList)}`);
     }
 
-    // Risk levels
-    const selectedRisks = Object.entries(filters.riskLevels)
-      .filter(([_, enabled]) => enabled)
-      .map(([key]) => riskLabelMap[key]);
-
-    const allRisks = Object.values(filters.riskLevels).every((v) => v);
-    const noRisks = Object.values(filters.riskLevels).every((v) => !v);
-
-    if (noRisks) {
-      params.push(`GRI_class=${encodeURIComponent("_none_")}`);
-    } else if (!allRisks && selectedRisks.length > 0) {
-      params.push(`GRI_class=${encodeURIComponent(selectedRisks.join(","))}`);
-    }
+    // NOTE: Risk levels removed from API query to enable client-side filtering
+    // without triggering a data reload.
 
     return params.length
       ? `?${params.join("&")}&page_size=5000`
       : "?page_size=5000";
-  }, [filters.districts, filters.riskLevels, riskLabelMap]);
+  }, [filters.districts]); // Removed filters.riskLevels and riskLabelMap from dependencies
 
   // Fetch geo data with caching
   useEffect(() => {
@@ -658,9 +676,6 @@ export default function GeoRiskMapDashboard({
                 <p style="margin: 4px 0;"><strong>Район:</strong> ${
                   props.district || "N/A"
                 }</p>
-                <p style="margin: 4px 0;"><strong>Население:</strong> ${
-                  props.total_population || 0
-                }</p>
               </div>
             `
             )
@@ -686,6 +701,7 @@ export default function GeoRiskMapDashboard({
   }, [mapLoaded, geoStructsLoaded, PBF_BASE_URL, buildDistrictQuery]);
 
   // Update PBF tile URL when district filter changes (like old map does)
+  // Update PBF tile URL when district filter changes (like old map does)
   useEffect(() => {
     if (!mapRef.current || !mapLoaded || !geoRiskLayerCreatedRef.current)
       return;
@@ -700,6 +716,15 @@ export default function GeoRiskMapDashboard({
 
     // Build new tile URL with current district filter
     const newTileUrl = `${PBF_BASE_URL}${buildDistrictQuery()}`;
+    
+    // CRITICAL FIX: Check if the URL is actually different before setting tiles.
+    // Changing risk levels creates a new filters object in the parent, triggering this effect.
+    // Calling setTiles on the same URL forces the map to reload all data and ignore filters!
+    const currentUrls = src.tiles || [];
+    if (currentUrls.length > 0 && currentUrls[0] === newTileUrl) {
+      return; // Skip re-fetching if URL hasn't changed
+    }
+
     console.log("🔄 Updating PBF tile URL for district filter:", newTileUrl);
     console.log("🔄 Selected districts:", filters.districts);
 
@@ -710,47 +735,87 @@ export default function GeoRiskMapDashboard({
 
   // Update geo risk layer filters when risk levels change
   // NOTE: District filtering is done via tile URL (server-side), not setFilter
+  // useEffect(() => {
+  //   if (!mapRef.current || !mapLoaded) return;
+
+  //   const map = mapRef.current;
+  //   if (!map.getLayer("geoRisk-fill")) return;
+
+  //   // Build risk filter only (district filtering is via URL)
+  //   const selectedRisks = Object.entries(filters.riskLevels)
+  //     .filter(([_, enabled]) => enabled)
+  //     .map(([key]) => riskLabelMap[key]);
+
+  //   const allRisks = Object.values(filters.riskLevels).every((v) => v);
+  //   const noRisks = Object.values(filters.riskLevels).every((v) => !v);
+
+  //   // Apply risk filter only
+  //   if (noRisks) {
+  //     // Hide all if no risks selected
+  //     console.log("🔍 Hiding all (no risks selected)");
+  //     map.setFilter("geoRisk-fill", ["==", ["get", "GRI_class"], "___NONE___"]);
+  //   } else if (!allRisks && selectedRisks.length > 0) {
+  //     console.log("🔍 Setting risk filter:", selectedRisks);
+  //     map.setFilter("geoRisk-fill", [
+  //       "in",
+  //       ["get", "GRI_class"],
+  //       ["literal", selectedRisks],
+  //     ]);
+  //   } else {
+  //     // Show all (all risks selected)
+  //     console.log("🔍 Clearing filter (showing all risks)");
+  //     map.setFilter("geoRisk-fill", null);
+  //   }
+
+  //   // Force repaint
+  //   map.triggerRepaint();
+
+  //   console.log("🔍 Applied geo risk filters:", {
+  //     selectedRisks,
+  //     districts: filters.districts,
+  //   });
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, [filters.riskLevels, riskLabelMap, mapLoaded]);
+  // Update geo risk layer filters when risk levels change (Client-Side)
+  // Update geo risk layer filters when risk levels change (Client-Side)
+  // Обновленный эффект фильтрации рисков (Client-side)
   useEffect(() => {
     if (!mapRef.current || !mapLoaded) return;
-
     const map = mapRef.current;
-    if (!map.getLayer("geoRisk-fill")) return;
 
-    // Build risk filter only (district filtering is via URL)
-    const selectedRisks = Object.entries(filters.riskLevels)
-      .filter(([_, enabled]) => enabled)
-      .map(([key]) => riskLabelMap[key]);
+    const applyFilter = () => {
+      if (!map.getLayer("geoRisk-fill")) return;
 
-    const allRisks = Object.values(filters.riskLevels).every((v) => v);
-    const noRisks = Object.values(filters.riskLevels).every((v) => !v);
+      const selectedRisks = Object.entries(filters.riskLevels)
+        .filter(([_, enabled]) => enabled)
+        .map(([key]) => riskLabelMap[key]);
 
-    // Apply risk filter only
-    if (noRisks) {
-      // Hide all if no risks selected
-      console.log("🔍 Hiding all (no risks selected)");
-      map.setFilter("geoRisk-fill", ["==", ["get", "GRI_class"], "___NONE___"]);
-    } else if (!allRisks && selectedRisks.length > 0) {
-      console.log("🔍 Setting risk filter:", selectedRisks);
-      map.setFilter("geoRisk-fill", [
-        "in",
-        ["get", "GRI_class"],
-        ["literal", selectedRisks],
-      ]);
-    } else {
-      // Show all (all risks selected)
-      console.log("🔍 Clearing filter (showing all risks)");
-      map.setFilter("geoRisk-fill", null);
-    }
+      if (selectedRisks.length === 0) {
+        map.setLayoutProperty("geoRisk-fill", "visibility", "none");
+      } else {
+        map.setLayoutProperty("geoRisk-fill", "visibility", "visible");
+        
+        // Используем современный синтаксис Expressions для надежности
+        // ['in', ['get', 'GRI_class'], ['literal', ['высокий', 'средний']]]
+        map.setFilter("geoRisk-fill", [
+          "in",
+          ["get", "GRI_class"],
+          ["literal", selectedRisks]
+        ]);
+      }
+      console.log("✅ Applied GRI_class filter:", selectedRisks);
+    };
 
-    // Force repaint
-    map.triggerRepaint();
+    // Применяем фильтр сразу
+    applyFilter();
 
-    console.log("🔍 Applied geo risk filters:", {
-      selectedRisks,
-      districts: filters.districts,
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.riskLevels, riskLabelMap, mapLoaded]);
+    // Также подписываемся на событие 'sourcedata', чтобы фильтр 
+    // не пропадал при перезагрузке тайлов (например, при смене района)
+    map.on('sourcedata', applyFilter);
+    return () => map.off('sourcedata', applyFilter);
+
+  }, [filters.riskLevels, filters.districts, mapLoaded, riskLabelMap]); 
+  // Добавили filters.districts в зависимости, так как при смене района тайлы перегружаются
 
   // Update layer visibility and filters
   useEffect(() => {
