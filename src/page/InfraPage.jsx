@@ -47,7 +47,7 @@ export default function InfraPage({ activeLayer, setActiveLayer }) {
         riskClassFilter={riskClassFilter}
       />
 
-      <div className="absolute top-[80px] left-4 z-20 w-80">
+      {/* <div className="absolute top-[80px] left-4 z-20 w-80"> */}
         <InfraFilter
           setEnginNodes={setEnginNodes}
           setSocialCategories={setSocialCategories}
@@ -62,7 +62,7 @@ export default function InfraPage({ activeLayer, setActiveLayer }) {
           riskClassFilter={riskClassFilter}
           setRiskClassFilter={setRiskClassFilter}
         />
-      </div>
+      {/* </div> */}
     </div>
   );
 }

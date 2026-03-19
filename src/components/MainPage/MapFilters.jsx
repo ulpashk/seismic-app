@@ -1,14 +1,8 @@
 import { useState } from "react";
 
 export default function MapFilters({
-  // Data from parent
   districts = [],
-  districtCoordinates = {},
-  riskLabelMap = {},
-  categoryLabelMap = {},
-  // State from parent
   filters = { districts: [], riskLevels: {}, categories: {} },
-  // Handlers from parent
   toggleRiskLevel = () => {},
   toggleCategory = () => {},
   selectDistrict = () => {},
@@ -21,7 +15,6 @@ export default function MapFilters({
     riskLevels: true,
   });
 
-  // Все районы для dropdown
   const allDistricts = ["Все районы", ...districts];
 
   const handleDistrictChange = (district) => {
@@ -36,95 +29,69 @@ export default function MapFilters({
     setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
   };
 
-  const sectionStyle = "space-y-1 text-xs max-h-44 overflow-y-auto";
-
+  // Вспомогательный компонент для меток с адаптивным размером
   const labelWithArrow = (children) => (
-    <span className="flex items-center space-x-1">
+    <span className="flex items-center space-x-1 truncate">
       <span className="text-gray-400">|</span>
-      <span>{children}</span>
+      <span className="truncate">{children}</span>
     </span>
   );
 
-  // Определяем выбранные районы для отображения
   const selectedDistrictsDisplay =
     filters.districts.length === 0 ? ["Все районы"] : filters.districts;
 
   return (
-    <div className="absolute top-[80px] left-4 z-20 w-80">
-      <div className="flex flex-col max-h-[50vh] bg-white/95 backdrop-blur-sm rounded-xl border shadow-lg overflow-hidden">
-        {/* Sticky Header + District Selector */}
-        <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b">
-          <div className="flex items-center justify-between px-4 pt-3 pb-2 font-semibold text-base border-b-0">
+    /* 
+       Адаптивная ширина: 
+       - По умолчанию (самые маленькие): w-60 (240px)
+       - Маленькие экраны (sm): w-72 (288px)
+       - Средние (md): w-80 (320px)
+    */
+    <div className="absolute top-[80px] left-2 md:left-4 z-20 w-60 sm:w-72 md:w-80 transition-all duration-300">
+      <div className="flex flex-col max-h-[60vh] md:max-h-[80vh] bg-white/95 backdrop-blur-sm rounded-lg md:rounded-xl border shadow-md overflow-hidden">
+        
+        {/* Шапка */}
+        <div className="sticky top-0 z-20 bg-white border-b">
+          <div className="flex items-center justify-between px-2 md:px-4 py-2 font-semibold text-sm sm:text-base md:text-base">
             <span>Фильтры</span>
-
-            {/* Иконка для сворачивания фильтров */}
             <button
               onClick={() => setFiltersHidden(!filtersHidden)}
-              className="text-gray-600 hover:text-gray-900 transition-transform"
-              title={filtersHidden ? "Показать фильтры" : "Скрыть фильтры"}
+              className="p-1 hover:bg-gray-100 rounded"
             >
               <svg
-                className={`w-4 h-4 transform transition-transform duration-300 ${
-                  filtersHidden ? "rotate-180" : ""
-                }`}
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2}
-                viewBox="0 0 24 24"
+                className={`w-3.5 h-3.5 md:w-4 md:h-4 transform transition-transform ${filtersHidden ? "" : "rotate-180"}`}
+                fill="none" stroke="currentColor" viewBox="0 0 24 24"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M19 9l-7 7-7-7"
-                />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
             </button>
           </div>
 
-          {/* Районы — всегда видимая часть */}
-          <div className="px-4 pb-3">
+          {/* Селектор района */}
+          <div className="px-2 md:px-4 pb-2">
             <div className="relative">
               <div
                 onClick={() => setDistrictDropdownOpen(!districtDropdownOpen)}
-                className="flex items-center justify-between px-3 py-2 border rounded-md text-sm cursor-pointer hover:bg-gray-50"
+                className="flex items-center justify-between px-2 py-1 md:py-1.5 border rounded md:rounded-md text-[10px] sm:text-xs md:text-sm cursor-pointer hover:bg-gray-50"
               >
-                <span className="flex-1 truncate">
+                <span className="flex-1 truncate mr-1">
                   {selectedDistrictsDisplay.join(", ")}
                 </span>
-                <svg
-                  className={`w-4 h-4 transition-transform ${
-                    districtDropdownOpen ? "rotate-180" : ""
-                  }`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
+                <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </div>
 
               {districtDropdownOpen && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-md shadow-lg z-30 max-h-44 overflow-y-auto">
-                  <div className="p-2 space-y-1 text-xs">
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded shadow-lg z-30 max-h-40 overflow-y-auto">
+                  <div className="p-1 space-y-0.5 text-[10px] sm:text-xs">
                     {allDistricts.map((district) => (
-                      <label
-                        key={district}
-                        className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-1 rounded"
-                      >
+                      <label key={district} className="flex items-center space-x-1.5 p-1.5 hover:bg-blue-50 rounded cursor-pointer">
                         <input
                           type="checkbox"
-                          checked={
-                            district === "Все районы"
-                              ? filters.districts.length === 0
-                              : filters.districts.includes(district)
-                          }
+                          checked={district === "Все районы" ? filters.districts.length === 0 : filters.districts.includes(district)}
                           onChange={() => handleDistrictChange(district)}
-                          className="form-checkbox scale-90"
+                          className="h-3 w-3 text-blue-600 rounded"
                         />
                         {labelWithArrow(district)}
                       </label>
@@ -136,92 +103,46 @@ export default function MapFilters({
           </div>
         </div>
 
-        {/* Скрываемая часть (с анимацией) */}
-        <div
-          className={`transition-all duration-500 ease-in-out ${
-            filtersHidden
-              ? "max-h-0 opacity-0 overflow-hidden"
-              : "max-h-[600px] opacity-100 overflow-y-auto"
-          }`}
-        >
-          <div className="flex-1 overflow-y-auto px-4 pb-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
-            {/* Categories */}
-            <div className="py-3 border-b">
-              <div
-                className="flex justify-between items-center cursor-pointer"
-                onClick={() => toggleSection("categories")}
-              >
-                <h3 className="font-medium text-gray-900 cursor-pointer text-sm">
-                  Категории рисков:
-                </h3>
-                <span className="text-gray-500">
-                  {openSections.categories ? "▾" : "▸"}
-                </span>
+        {/* Контент фильтров (Сворачиваемый) */}
+        <div className={`transition-all duration-300 ${filtersHidden ? "max-h-0 opacity-0" : "max-h-[400px] opacity-100"}`}>
+          <div className="px-2 md:px-4 pb-3 overflow-y-auto divide-y divide-gray-50">
+            
+            {/* Секция Категории */}
+            <div className="py-2 border-b">
+              <div className="flex justify-between items-center cursor-pointer" onClick={() => toggleSection("categories")}>
+                <h3 className="font-medium text-[10px] sm:text-xs md:text-sm">Категории рисков:</h3>
+                <span className="text-[10px] text-gray-400">{openSections.categories ? "▼" : "▶"}</span>
               </div>
               {openSections.categories && (
-                <div className={sectionStyle}>
+                <div className="mt-1 space-y-0.5">
                   {Object.entries(filters.categories).map(([key, enabled]) => (
-                    <label
-                      key={key}
-                      className="flex items-center space-x-2 cursor-pointer p-1 hover:bg-gray-50 rounded"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={enabled}
-                        onChange={() => toggleCategory(key)}
-                        className="form-checkbox scale-90"
-                      />
-                      {labelWithArrow(
-                        key === "mudflow"
-                          ? "Селевые потоки"
-                          : key === "landslide"
-                          ? "Оползни"
-                          : "Тектонические разломы"
-                      )}
+                    <label key={key} className="flex items-center space-x-1.5 p-1 hover:bg-gray-50 rounded text-[10px] sm:text-xs cursor-pointer">
+                      <input type="checkbox" checked={enabled} onChange={() => toggleCategory(key)} className="h-3 w-3" />
+                      {labelWithArrow(key === "mudflow" ? "Сели" : key === "landslide" ? "Оползни" : "Разломы")}
                     </label>
                   ))}
                 </div>
               )}
             </div>
 
-            {/* Risk Levels */}
-            <div className="py-3">
-              <div
-                className="flex justify-between items-center cursor-pointer"
-                onClick={() => toggleSection("riskLevels")}
-              >
-                <h3 className="font-medium text-gray-900 cursor-pointer text-sm">
-                  Уровни риска:
-                </h3>
-                <span className="text-gray-500">
-                  {openSections.riskLevels ? "▾" : "▸"}
-                </span>
+            {/* Секция Уровни риска */}
+            <div className="py-2">
+              <div className="flex justify-between items-center cursor-pointer" onClick={() => toggleSection("riskLevels")}>
+                <h3 className="font-medium text-[10px] sm:text-xs md:text-sm">Уровни риска:</h3>
+                <span className="text-[10px] text-gray-400">{openSections.riskLevels ? "▼" : "▶"}</span>
               </div>
               {openSections.riskLevels && (
-                <div className={sectionStyle}>
+                <div className="mt-1 space-y-0.5">
                   {Object.entries(filters.riskLevels).map(([key, enabled]) => (
-                    <label
-                      key={key}
-                      className="flex items-center space-x-2 cursor-pointer p-1 hover:bg-gray-50 rounded"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={enabled}
-                        onChange={() => toggleRiskLevel(key)}
-                        className="form-checkbox scale-90"
-                      />
-                      {labelWithArrow(
-                        key === "high"
-                          ? "Высокий"
-                          : key === "medium"
-                          ? "Средний"
-                          : "Низкий"
-                      )}
+                    <label key={key} className="flex items-center space-x-1.5 p-1 hover:bg-gray-50 rounded text-[10px] sm:text-xs cursor-pointer">
+                      <input type="checkbox" checked={enabled} onChange={() => toggleRiskLevel(key)} className="h-3 w-3" />
+                      {labelWithArrow(key === "high" ? "Высокий" : key === "medium" ? "Средний" : "Низкий")}
                     </label>
                   ))}
                 </div>
               )}
             </div>
+
           </div>
         </div>
       </div>

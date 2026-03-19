@@ -283,8 +283,6 @@ export default function GeoRiskMapDashboard({
     mapRef.current = map;
     overlayRef.current = new MapboxOverlay({ interleaved: true, layers: [] });
 
-    map.addControl(new maplibregl.NavigationControl(), "top-right");
-
     map.on("load", () => {
       console.log("🗺️ Map loaded event fired");
       setMapLoaded(true);

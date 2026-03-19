@@ -22,15 +22,8 @@ export default function InfraFilter({
   });
 
   const allDistricts = [
-    "Все районы",
-    "Алатауский",
-    "Алмалинский",
-    "Ауэзовский",
-    "Бостандыкский",
-    "Жетысуский",
-    "Медеуский",
-    "Наурызбайский",
-    "Турксибский",
+    "Все районы", "Алатауский", "Алмалинский", "Ауэзовский", 
+    "Бостандыкский", "Жетысуский", "Медеуский", "Наурызбайский", "Турксибский",
   ];
 
   useEffect(() => {
@@ -39,377 +32,138 @@ export default function InfraFilter({
     }
   }, [selectedDistrict, setSelectedDistrict]);
 
-  const handleRiskLevelChange = (level) => {
-    setEnginNodes((prev) => ({
-      ...prev,
-      [level]: !prev[level],
-    }));
-  };
-
-  const handleSocialChange = (category) => {
-    setSocialCategories((prev) => ({
-      ...prev,
-      [category]: !prev[category],
-    }));
-  };
-
-  const handleDistrictChange = (city) => {
-    if (city === "Все районы") {
-      setSelectedDistrict(["Все районы"]);
-    } else {
-      setSelectedDistrict((prev) => {
-        let updated = prev.includes(city)
-          ? prev.filter((c) => c !== city)
-          : [...prev.filter((c) => c !== "Все районы"), city];
-
-        return updated.length === 0 ? ["Все районы"] : updated;
-      });
-    }
-  };
-
   const toggleSection = (section) => {
     setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
   };
 
-  // small text + scrollable div style
-  const sectionStyle = "space-y-1 text-xs max-h-44 overflow-y-auto";
-
   const labelWithArrow = (children) => (
-    <span className="flex items-center space-x-1">
-      <span className="text-gray-400">|</span> {/* vertical symbol */}
-      <span>{children}</span>
+    <span className="flex items-center space-x-1 truncate">
+      <span className="text-gray-400">|</span>
+      <span className="truncate">{children}</span>
     </span>
   );
 
   const formatNumber = (num) => num?.toLocaleString("ru-RU");
 
   return (
-    <>
-      <div className="flex flex-col max-h-[50vh] bg-white/95 backdrop-blur-sm rounded-xl border shadow-lg overflow-hidden">
-        {/* Sticky Header + District Selector */}
-        <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b">
-          <div className="flex items-center justify-between px-4 pt-3 pb-2 font-semibold text-base border-b-0">
-            <span>Фильтры</span>
-
-            {/* 🔹 Иконка для сворачивания фильтров */}
-            <button
-              onClick={() => setFiltersHidden(!filtersHidden)}
-              className="text-gray-600 hover:text-gray-900 transition-transform"
-              title={filtersHidden ? "Показать фильтры" : "Скрыть фильтры"}
+    // Единый контейнер для всей боковой панели
+    <div className="absolute top-[80px] left-2 sm:left-4 z-20 w-64 sm:w-72 md:w-80 flex flex-col transition-all duration-300">
+      <div className="flex flex-col bg-white/95 backdrop-blur-sm rounded-xl border shadow-xl overflow-hidden">
+        
+        {/* ЗАГОЛОВОК (Всегда виден) */}
+        <div className="flex items-center justify-between px-3 md:px-4 py-3 border-b bg-white">
+          <span className="font-bold text-xs sm:text-sm md:text-base text-gray-800">Фильтры</span>
+          <button
+            onClick={() => setFiltersHidden(!filtersHidden)}
+            className="p-1 hover:bg-gray-100 rounded-md transition-colors"
+          >
+            <svg
+              className={`w-4 h-4 transform transition-transform duration-300 ${filtersHidden ? "" : "rotate-180"}`}
+              fill="none" stroke="currentColor" viewBox="0 0 24 24"
             >
-              <svg
-                className={`w-4 h-4 transform transition-transform duration-300 ${
-                  filtersHidden ? "rotate-180" : ""
-                }`}
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2}
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M19 9l-7 7-7-7"
-                />
-              </svg>
-            </button>
-          </div>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+        </div>
 
-          {/* Районы — всегда видимая часть */}
-          <div className="px-4 pb-3">
+        {/* СКРОЛЛЯЕМАЯ ОБЛАСТЬ ФИЛЬТРОВ */}
+        <div className={`flex-1 overflow-y-auto transition-all duration-300 ${filtersHidden ? "max-h-0" : "max-h-[50vh]"}`}>
+          <div className="p-3 md:p-4 space-y-4">
+            
+            {/* Выбор района */}
             <div className="relative">
               <div
                 onClick={() => setDistrictDropdownOpen(!districtDropdownOpen)}
-                className="flex items-center justify-between px-3 py-2 border rounded-md text-sm cursor-pointer hover:bg-gray-50"
+                className="flex items-center justify-between px-3 py-2 border rounded-md text-[10px] sm:text-xs md:text-sm cursor-pointer hover:bg-gray-50"
               >
-                <span className="flex-1 truncate">
-                  {selectedDistrict.length > 0
-                    ? selectedDistrict.join(", ")
-                    : "Выберите район"}
-                </span>
-                <svg
-                  className={`w-4 h-4 transition-transform ${
-                    districtDropdownOpen ? "rotate-180" : ""
-                  }`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
+                <span className="truncate mr-1">{selectedDistrict.join(", ")}</span>
+                <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </div>
-
               {districtDropdownOpen && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-md shadow-lg z-30 max-h-44 overflow-y-auto">
-                  <div className="p-2 space-y-1 text-xs">
-                    {allDistricts.map((district) => (
-                      <label
-                        key={district}
-                        className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-1 rounded"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedDistrict.includes(district)}
-                          onChange={() => handleDistrictChange(district)}
-                          className="form-checkbox scale-90"
-                        />
-                        {labelWithArrow(district)}
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded shadow-2xl z-50 max-h-40 overflow-y-auto">
+                  {allDistricts.map((district) => (
+                    <label key={district} className="flex items-center space-x-2 p-2 hover:bg-blue-50 text-[10px] sm:text-xs cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedDistrict.includes(district)}
+                        onChange={() => {
+                          if (district === "Все районы") setSelectedDistrict(["Все районы"]);
+                          else {
+                            setSelectedDistrict(prev => prev.includes(district) ? prev.filter(d => d !== district) : [...prev.filter(d => d !== "Все районы"), district]);
+                          }
+                        }}
+                        className="h-3 w-3"
+                      />
+                      <span>{district}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Класс риска */}
+            <div className="space-y-1">
+              <h3 className="font-medium text-[10px] sm:text-xs md:text-sm">Класс риска зданий:</h3>
+              <div className="space-y-1">
+                <label className="flex items-center space-x-2 text-[10px] sm:text-xs cursor-pointer">
+                  <input type="checkbox" checked={riskClassFilter.showHighRisk} onChange={() => setRiskClassFilter(p => ({...p, showHighRisk: !p.showHighRisk}))} className="h-3 w-3" />
+                  {labelWithArrow("Высокий риск (E, D)")}
+                </label>
+                <label className="flex items-center space-x-2 text-[10px] sm:text-xs cursor-pointer">
+                  <input type="checkbox" checked={riskClassFilter.showLowRisk} onChange={() => setRiskClassFilter(p => ({...p, showLowRisk: !p.showLowRisk}))} className="h-3 w-3" />
+                  {labelWithArrow("Низкий риск (A-C)")}
+                </label>
+              </div>
+            </div>
+
+            {/* Секции: Инженерные узлы и Социальные объекты */}
+            {[
+              { id: 'risk', label: 'Инженерные узлы:', items: ["Канализация", "ИКТ инфраструктура", "Электроснабжение", "Теплоснабжение", "Газоснабжение"], state: enginNodes, handler: setEnginNodes },
+              { id: 'social', label: 'Социальные объекты:', items: ["Школы", "ДДО", "Больницы", "ПППН"], state: socialCategories, handler: setSocialCategories }
+            ].map(section => (
+              <div key={section.id} className="border-t pt-2">
+                <div className="flex justify-between items-center cursor-pointer mb-1" onClick={() => toggleSection(section.id)}>
+                  <h3 className="font-medium text-[10px] sm:text-xs md:text-sm">{section.label}</h3>
+                  <span className="text-[10px]">{openSections[section.id] ? "▼" : "▶"}</span>
+                </div>
+                {openSections[section.id] && (
+                  <div className="space-y-1">
+                    {section.items.map(item => (
+                      <label key={item} className="flex items-center space-x-2 text-[10px] sm:text-xs cursor-pointer">
+                        <input type="checkbox" checked={section.state[item]} onChange={() => section.handler(p => ({...p, [item]: !p[item]}))} className="h-3 w-3" />
+                        {labelWithArrow(item === "ДДО" ? "Детские сады" : item)}
                       </label>
                     ))}
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* 🔹 Скрываемая часть (с анимацией) */}
-        <div
-          className={`transition-all duration-500 ease-in-out ${
-            filtersHidden
-              ? "max-h-0 opacity-0 overflow-hidden"
-              : "max-h-[600px] opacity-100 overflow-y-auto"
-          }`}
-        >
-          <div className="flex-1 overflow-y-auto px-4 pb-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
-            {/* Risk Class Filter - Фильтр по классам риска */}
-            {riskClassFilter && setRiskClassFilter && (
-              <div className="py-3 border-t">
-                <h3 className="font-medium text-gray-900 text-sm mb-2">
-                  Класс риска зданий:
-                </h3>
-                <div className={sectionStyle}>
-                  <label className="flex items-center space-x-2 cursor-pointer p-1 hover:bg-gray-50 rounded">
-                    <input
-                      type="checkbox"
-                      checked={riskClassFilter.showHighRisk}
-                      onChange={() =>
-                        setRiskClassFilter((prev) => ({
-                          ...prev,
-                          showHighRisk: !prev.showHighRisk,
-                        }))
-                      }
-                      className="form-checkbox scale-90"
-                    />
-                    {labelWithArrow("Высокий риск (E, D)")}
-                  </label>
-                  <label className="flex items-center space-x-2 cursor-pointer p-1 hover:bg-gray-50 rounded">
-                    <input
-                      type="checkbox"
-                      checked={riskClassFilter.showLowRisk}
-                      onChange={() =>
-                        setRiskClassFilter((prev) => ({
-                          ...prev,
-                          showLowRisk: !prev.showLowRisk,
-                        }))
-                      }
-                      className="form-checkbox scale-90"
-                    />
-                    {labelWithArrow("Низкий риск (A, B, C)")}
-                  </label>
-                </div>
-              </div>
-            )}
+        {/* НИЖНЯЯ ПАНЕЛЬ СТАТИСТИКИ (Всегда внизу этого же блока) */}
+        <div className="border-t bg-gray-50/50 p-3 md:p-4">
+          <h3 className="font-medium text-[10px] sm:text-xs md:text-sm mb-2">Население:</h3>
+          <div className="space-y-1 text-[10px] sm:text-xs mb-3">
+            <div className="flex justify-between"><span className="text-red-600 font-medium">Высокий риск</span><span>57 020 (2.5%)</span></div>
+            <div className="flex justify-between text-gray-500"><span>Средний</span><span>454 666 (19.8%)</span></div>
+            <div className="flex justify-between text-gray-500"><span>Низкий</span><span>1 780 159 (77.7%)</span></div>
+          </div>
 
-            {/* Engineering Nodes */}
-            <div className="py-3 border-b">
-              <div
-                className="flex justify-between items-center cursor-pointer"
-                onClick={() => toggleSection("risk")}
-              >
-                <h3 className="font-medium text-gray-900 cursor-pointer text-sm">
-                  Инженерные узлы:
-                </h3>
-                <span className="text-gray-500">
-                  {openSections.risk ? "▾" : "▸"}
-                </span>
-              </div>
-              {openSections.risk && (
-                <div className={sectionStyle}>
-                  {[
-                    "Канализация",
-                    "ИКТ инфраструктура города",
-                    "Электроснабжение",
-                    "Теплоснабжение",
-                    "Газоснабжение",
-                  ].map((node) => (
-                    <label
-                      key={node}
-                      className="flex items-center space-x-2 cursor-pointer p-1 hover:bg-gray-50 rounded"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={enginNodes[node]}
-                        onChange={() => handleRiskLevelChange(node)}
-                        className="form-checkbox scale-90"
-                      />
-                      {labelWithArrow(node)}
-                    </label>
-                  ))}
-                </div>
-              )}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-white border rounded-lg p-1.5 md:p-2 text-center shadow-sm">
+              <div className="text-[10px] sm:text-xs md:text-sm font-bold text-red-600">1 088</div>
+              <p className="text-[8px] sm:text-[9px] text-gray-500 leading-tight">Несейсмостойкие</p>
             </div>
-
-            {/* Social Categories */}
-            <div className="py-3 border-b">
-              <div
-                className="flex justify-between items-center cursor-pointer"
-                onClick={() => toggleSection("social")}
-              >
-                <h3 className="font-medium text-gray-900 cursor-pointer text-sm">
-                  Социальные объекты:
-                </h3>
-                <span className="text-gray-500">
-                  {openSections.social ? "▾" : "▸"}
-                </span>
-              </div>
-              {openSections.social && (
-                <div className={sectionStyle}>
-                  {["Школы", "ДДО", "Больницы", "ПППН"].map((cat) => (
-                    <label
-                      key={cat}
-                      className="flex items-center space-x-2 cursor-pointer p-1 hover:bg-gray-50 rounded"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={socialCategories[cat]}
-                        onChange={() => handleSocialChange(cat)}
-                        className="form-checkbox scale-90"
-                      />
-                      {labelWithArrow(
-                        cat === "Школы"
-                          ? "Школы"
-                          : cat === "ДДО"
-                          ? "Детские сады"
-                          : cat === "Больницы"
-                          ? "Больницы"
-                          : "ПППН"
-                      )}
-                    </label>
-                  ))}
-                </div>
-              )}
-            </div>
-
-           {/* Building Categories */}
-            <div className="py-3">
-              <div
-                className="flex justify-between items-center cursor-pointer"
-                onClick={() => toggleSection("building")}
-              >
-                <h3 className="font-medium text-gray-900 cursor-pointer text-sm">
-                  Категория зданий:
-                </h3>
-                <span className="text-gray-500">
-                  {openSections.building ? "▾" : "▸"}
-                </span>
-              </div>
-              
-              {openSections.building && (
-                <div className={sectionStyle}>
-                  {Object.entries(buildingCategories).map(([key, isChecked]) => (
-                    <label
-                      key={key}
-                      className="flex items-center space-x-2 cursor-pointer p-1 hover:bg-gray-50 rounded"
-                    >
-                      <input
-                        type={key === "highrise" ? "checkbox" : "radio"}
-                        
-                        name={key === "highrise" ? "highrise_group" : "seismic_group"}
-                        
-                        checked={isChecked}
-
-                        onClick={() =>
-                          setBuildingCategories((prev) => {
-                            if (key === "highrise") {
-                              return { ...prev, highrise: !prev.highrise };
-                            }
-
-                            if (prev[key]) {
-                              return { ...prev, [key]: false };
-                            }
-                            return {
-                              ...prev,
-                              seismicSafety: false,
-                              emergency: false,
-                              seismic: false,
-                              [key]: true,
-                            };
-                          })
-                        }
-                        readOnly 
-                        className={`scale-90 ${key === "highrise" ? "form-checkbox" : "form-radio"}`}
-                      />
-                      <span className="text-sm">
-                        {key === "highrise"
-                          ? "Здания выше 9 этажей между пр. Абая и пр. Аль-Фараби"
-                          : key === "seismicSafety"
-                          ? "Здания прошедшие паспортизацию"
-                          : key === "emergency"
-                          ? "Аварийные здания"
-                          : "Несейсмостойкие здания"}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              )}
+            <div className="bg-white border rounded-lg p-1.5 md:p-2 text-center shadow-sm">
+              <div className="text-[10px] sm:text-xs md:text-sm font-bold text-gray-900">21 539</div>
+              <p className="text-[8px] sm:text-[9px] text-gray-500 leading-tight">Паспортизация</p>
             </div>
           </div>
         </div>
       </div>
-
-      {/* Статическая нижняя часть */}
-      <div className="fixed bottom-8 left-4 lg:w-80 border-t bg-white/95 backdrop-blur-sm rounded-xl border shadow-lg overflow-hidden mt-5 p-4">
-        {/* Population */}
-        <div className="mb-4">
-          <h3 className="font-semibold text-gray-900 mb-3">Население:</h3>
-          <div className="space-y-1 text-sm">
-            <div className="flex justify-between">
-              <span className="font-medium text-red-600">Высокий</span>
-              <span>57 020 - 2.49%</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Средний</span>
-              <span>454 666 - 19.83%</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Низкий</span>
-              <span>1 780 159 - 77.68%</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Cards */}
-        <div className="grid grid-cols-2 gap-2">
-          {[
-            {
-              number: 1088,
-              label: "Несейсмостойких зданий",
-              color: "text-red-600",
-            },
-            {
-              number: 21539,
-              label: "Объекты паспортизации",
-              color: "text-black-600",
-            },
-          ].map((stat, i) => (
-            <div
-              key={i}
-              className="text-center rounded-lg border bg-white shadow p-2"
-            >
-              <div className={`text-m font-bold ${stat.color}`}>
-                {formatNumber(stat.number)}
-              </div>
-              <p className="text-xs text-gray-500">{stat.label}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </>
+    </div>
   );
 }
