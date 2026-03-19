@@ -35,19 +35,18 @@ export default function Indicators({
     { number: emergencyBuildings, label: "Аварийных зданий" },
   ];
 
+  // Indicators.jsx
   return (
-    <div className="grid grid-cols-2 gap-4">
+    <div className="grid grid-cols-2 gap-3 md:gap-4">
       {stats.map((stat, i) => (
         <div
           key={i}
-          className="text-center rounded-lg border border-gray-100 bg-gov-card p-4 shadow-sm hover:shadow-md transition-shadow"
+          className="text-center rounded-lg border border-gray-100 bg-white p-3 md:p-4 shadow-sm"
         >
-          <div className="text-2xl font-bold text-gov-text-primary mb-1">
-            {stat.number !== null && stat.number !== undefined
-              ? formatNumber(stat.number)
-              : "…"}
+          <div className="text-lg md:text-xl font-bold text-gray-900 mb-1">
+            {stat.number !== null ? formatNumber(stat.number) : "…"}
           </div>
-          <p className="text-xs font-medium text-gov-text-secondary">
+          <p className="text-[10px] md:text-xs font-medium text-gray-500 leading-tight">
             {stat.label}
           </p>
         </div>

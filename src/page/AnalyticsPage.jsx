@@ -203,48 +203,42 @@ export default function AnalyticPage() {
     setSelectedDistrict(district);
   };
 
+  // Изменения в return AnalyticPage.jsx
   return (
-    <div className="px-6 py-4 bg-gov-bg min-h-screen">
-      {/* District Filter Panel */}
-      <div className="bg-gov-card rounded-lg p-4 shadow-sm relative mb-6">
+    <div className="px-3 md:px-6 py-4 bg-gov-bg min-h-screen">
+      {/* Панель фильтров районов */}
+      <div className="bg-gov-card rounded-lg p-3 md:p-4 shadow-sm relative mb-4 md:mb-6">
         <div className="flex items-center gap-2 mb-4">
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className="flex items-center gap-2 flex-1 text-left hover:bg-gray-50 rounded-md p-2 -m-2 transition-colors"
+            className="flex items-center gap-2 flex-1 text-left hover:bg-gray-50 rounded-md p-1 transition-colors"
           >
-            <SlidersHorizontal className="w-5 h-5 text-gov-text-secondary" />
-            <h2 className="text-lg font-semibold text-gov-text-primary">
+            <SlidersHorizontal className="w-4 h-4 md:w-5 md:h-5 text-gov-text-secondary" />
+            <h2 className="text-base md:text-lg font-semibold text-gov-text-primary">
               Выберите район
             </h2>
-            {isExpanded ? (
-              <ChevronUp className="w-5 h-5 text-gov-text-secondary" />
-            ) : (
-              <ChevronDown className="w-5 h-5 text-gov-text-secondary" />
-            )}
+            {isExpanded ? <ChevronUp size={20}/> : <ChevronDown size={20}/>}
           </button>
         </div>
 
         {isExpanded && (
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-9 gap-2">
+          // Сетка районов: на мобилках 2 колонки, на планшетах 4, на больших экранах 9
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-9 gap-2">
             {districts.map((district) => {
               const isSelected = selectedDistrict === district;
               return (
                 <button
                   key={district}
                   onClick={() => selectDistrict(district)}
-                  className={`px-3 py-2 text-sm rounded-md transition-colors border ${
+                  className={`px-2 py-2 text-[10px] sm:text-xs md:text-sm rounded-md transition-colors border ${
                     isSelected
-                      ? "bg-blue-50 border-status-high text-gov-blue"
+                      ? "bg-blue-50 border-blue-500 text-gov-blue"
                       : "bg-gray-50 border-gray-200 text-gov-text-secondary hover:bg-gray-100"
                   }`}
                 >
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`w-2 h-2 rounded-full ${
-                        isSelected ? "bg-status-high" : "bg-gov-text-secondary"
-                      }`}
-                    ></span>
-                    <span className="font-medium">{district}</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${isSelected ? "bg-blue-600" : "bg-gray-400"}`} />
+                    <span className="truncate">{district}</span>
                   </div>
                 </button>
               );
@@ -253,8 +247,10 @@ export default function AnalyticPage() {
         )}
       </div>
 
-      {/* Main Dashboard Grid */}
-      <div className="grid grid-cols-3 gap-4">
+      {/* ОСНОВНАЯ СЕТКА ДАШБОРДА */}
+      {/* Мобилки: 1 колонка | Планшеты: 2 колонки | Десктоп: 3 колонки */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+        {/* Левая колонка: Индикаторы и Паспорт */}
         <div className="flex flex-col gap-4">
           <Indicators
             totalBuildings={totalBuildings}
@@ -268,27 +264,30 @@ export default function AnalyticPage() {
           />
         </div>
 
-        {/* Seismic Resistance Levels */}
-        <BuildingRiskCategoryHisto data={buildingRiskdata} />
+        {/* Уровни сейсмостойкости */}
+        <div className="w-full">
+          <BuildingRiskCategoryHisto data={buildingRiskdata} />
+        </div>
 
-        {/* Social Objects by IRI Index */}
-        <SocialObjectsIRIHisto
-          chartData={chartData}
-          loading={loading}
-          error={error}
-        />
+        {/* Социальные объекты */}
+        <div className="w-full">
+          <SocialObjectsIRIHisto chartData={chartData} loading={loading} error={error} />
+        </div>
 
-        {/* Population by IRI Index */}
-        <PopulationIRIHisto chartData={chartData} />
+        {/* Население по IRI */}
+        <div className="w-full">
+          <PopulationIRIHisto chartData={chartData} />
+        </div>
 
-        {/* District Readiness Table */}
-        <DistrictReadinessTable
-          districtAverages={districtAverages}
-          districtRisk={districtRisk}
-        />
+        {/* Таблица районов */}
+        <div className="w-full xl:col-span-1 lg:col-span-2">
+          <DistrictReadinessTable districtAverages={districtAverages} districtRisk={districtRisk} />
+        </div>
 
-        {/* Population in Critical Zones */}
-        <PopulationCriticalHisto selectedDistrict={selectedDistrict} />
+        {/* Население в критических зонах */}
+        <div className="w-full">
+          <PopulationCriticalHisto selectedDistrict={selectedDistrict} />
+        </div>
       </div>
     </div>
   );
