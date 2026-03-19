@@ -934,46 +934,68 @@ export default function InfraMap({
   return (
     <div className="relative w-full h-full rounded-lg shadow-md overflow-hidden">
       {/* Layer Switcher */}
-      <div className="absolute top-20 left-1/2 -translate-x-1/2 z-10 flex items-center">
-        <div className="flex space-x-2">
+      <div className="absolute top-20 right-2 sm:right-4 md:right-auto md:left-1/2 md:-translate-x-1/2 z-20 flex flex-col md:flex-row items-end md:items-center transition-all duration-300">
+        <div className="flex flex-col md:flex-row gap-1.5 md:gap-2">
           {["building", "readiness"].map((key) => {
             const config = layerConfigs[key];
+            const isActive = activeLayer === key;
             return (
-              <div key={key}>
-                <div
-                  onClick={() => handleLayerSwitch(key)}
-                  className={`w-full px-3 py-2 rounded-md text-xs font-medium cursor-pointer transition-colors flex items-center justify-start ${
-                    activeLayer === key
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                  } ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
-                >
-                  {config.name}
-                </div>
-              </div>
+              <button
+                key={key}
+                disabled={loading}
+                onClick={() => handleLayerSwitch(key)}
+                className={`
+                  px-2 py-1.5 rounded-md text-[10px] font-medium transition-all shadow-md border
+                  flex items-center justify-center min-w-[140px] md:min-w-0 text-center
+                  md:px-4 md:py-2 md:text-xs
+                  
+                  ${
+                    isActive
+                      ? "bg-blue-600 text-white border-blue-600 ring-2 ring-blue-600/20"
+                      : "bg-white/90 backdrop-blur-sm text-gray-700 border-gray-200 hover:bg-white"
+                  }
+                  ${loading ? "opacity-50 cursor-not-allowed" : ""}
+                `}
+              >
+                {config.name}
+              </button>
             );
           })}
         </div>
-
-        {loading && (
-          <div className="ml-3 text-sm text-gray-500">Загрузка...</div>
+        {(loading || error) && (
+          <div className="mt-2 md:mt-0 md:ml-3 bg-white/80 backdrop-blur-sm px-2 py-1 rounded-md shadow-sm border border-gray-100">
+            {loading && (
+              <div className="text-[10px] md:text-sm text-gray-500 flex items-center">
+                <span className="inline-block animate-spin mr-1.5">◌</span>
+                Загрузка...
+              </div>
+            )}
+            {error && (
+              <div className="text-[10px] md:text-sm text-red-600">
+                {error}
+              </div>
+            )}
+          </div>
         )}
-        {error && <div className="ml-3 text-sm text-red-600">{error}</div>}
       </div>
 
       {/* Map Container */}
       <div ref={mapContainer} className="w-full h-full" />
 
       {activeLayer === "building" && (
-        <div className="absolute bottom-8 right-4 p-3 bg-gray-50 rounded-md border shadow">
-          <ul className="space-y-1">
+        <div className="absolute bottom-2 right-2 sm:bottom-4 sm:right-4 md:bottom-8 z-10 p-2 md:p-3 bg-white/95 backdrop-blur-sm rounded-lg border border-gray-200 shadow-xl transition-all duration-300 max-w-[160px] sm:max-w-none">
+          <ul className="space-y-0.5 md:space-y-1">
             {buildingLegend.map((item) => (
-              <li key={item.label} className="flex items-center space-x-2">
+              <li key={item.label} className="flex items-center space-x-1.5 md:space-x-2">
+                {/* Квадратик цвета: уменьшается с 4x4 до 3x3 */}
                 <span
-                  className="w-4 h-4 rounded-sm"
+                  className="w-3 h-3 md:w-4 md:h-4 rounded-sm flex-shrink-0 transition-all"
                   style={{ backgroundColor: item.color }}
                 />
-                <span className="text-xs text-gray-600">{item.label}</span>
+                {/* Текст: уменьшается с 12px (text-xs) до 9px */}
+                <span className="text-[9px] sm:text-[10px] md:text-xs text-gray-700 leading-tight">
+                  {item.label}
+                </span>
               </li>
             ))}
           </ul>
