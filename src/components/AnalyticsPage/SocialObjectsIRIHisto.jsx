@@ -13,7 +13,6 @@ import {
 } from "recharts";
 
 export default function SocialObjectsIRIHisto({ chartData, loading, error }) {
-  // 🧠 Преобразуем данные под Recharts
   const transformed = (chartData || []).map((item) => ({
     iri: item.IRI_cat,
     cnt_ddo: item.total_cnt_ddo || 0,
