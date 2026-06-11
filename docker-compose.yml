@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: monitoring-seismic-web
+    ports:
+      - "3006:80"
+    restart: unless-stopped
+    environment:
+      - TZ=Asia/Almaty
