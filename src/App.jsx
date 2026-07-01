@@ -12,7 +12,7 @@ function App() {
   const [mainPageTab, setMainPageTab] = useState("geo-risk");
 
   return (
-    <Router>
+    <Router basename="/monitoring-seismic">
       <div className="relative w-full h-screen overflow-hidden">
         <div className="absolute top-0 left-0 right-0 z-30">
           <Header

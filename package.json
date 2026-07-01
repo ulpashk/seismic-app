@@ -2,6 +2,7 @@
   "name": "seismic-app",
   "version": "0.1.0",
   "private": true,
+  "homepage": "/monitoring-seismic/",
   "dependencies": {
     "@deck.gl/core": "^9.1.14",
     "@deck.gl/layers": "^9.1.14",
